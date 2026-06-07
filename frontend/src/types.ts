@@ -2,6 +2,7 @@ export type Project = {
   name: string;
   path: string;
   kind: string;
+  displayName?: string;
   detectedAt: string;
   usageCount: number;
   lastLaunchedAt: string;

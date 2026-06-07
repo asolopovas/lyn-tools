@@ -11,8 +11,9 @@ const baseProject: Project = {
   lastLaunchedAt: "",
 };
 
-function project(path: string, kind = "vscode-workspace"): Project {
-  return { ...baseProject, path, kind };
+function project(path: string, kind = "vscode-workspace", displayName?: string): Project {
+  const item = { ...baseProject, path, kind };
+  return displayName === undefined ? item : { ...item, displayName };
 }
 
 describe("project title", () => {
@@ -27,6 +28,15 @@ describe("project title", () => {
       "encoded SSH recent",
       project("vscode-remote://ssh-remote%2Bhost/srv/www/example", "vscode-recent"),
       "example (SSH Recent)",
+    ],
+    [
+      "VS Code display name",
+      project(
+        "vscode-remote://ssh-remote+host/srv/www/example.code-workspace",
+        "vscode-workspace",
+        "example (Workspace) [SSH: host]",
+      ),
+      "example (Workspace) [SSH: host]",
     ],
   ] as const)("formats %s", (_label, item, expected) => {
     expect(title(item)).toBe(expected);

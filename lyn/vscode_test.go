@@ -123,7 +123,7 @@ func TestVSCodeRecentStateReadsOfficialHistoryKey(t *testing.T) {
 func TestParseVSCodeRemoteWslRecentProject(t *testing.T) {
 	raw := `{"entries":[{"folderUri":"vscode-remote://wsl%2Bubuntu/home/example/project","remoteAuthority":"wsl+ubuntu"}]}`
 	items := parseVSCodeRecentProjectsForTest(raw, "windows")
-	if len(items) != 1 || items[0].Name != "project" || items[0].Path != "/home/example/project" {
+	if len(items) != 1 || items[0].Name != "project [WSL: ubuntu]" || items[0].Path != "/home/example/project" {
 		t.Fatalf("unexpected items %#v", items)
 	}
 }
@@ -132,7 +132,29 @@ func TestParseVSCodeRemoteWslWorkspaceWithoutRemoteAuthority(t *testing.T) {
 	raw := `{"entries":[{"workspace":{"id":"id","configPath":"vscode-remote://wsl%2Bubuntu/home/example/www/example.test/wp-content/themes/example_theme/example.code-workspace"}}]}`
 	items := parseVSCodeRecentProjectsForTest(raw, "windows")
 	want := "/home/example/www/example.test/wp-content/themes/example_theme/example.code-workspace"
-	if len(items) != 1 || items[0].Name != "example" || items[0].Kind != "vscode-workspace" || items[0].Path != want {
+	if len(items) != 1 || items[0].Name != "example (Workspace) [WSL: ubuntu]" || items[0].DisplayName != items[0].Name || items[0].Kind != "vscode-workspace" || items[0].Path != want {
+		t.Fatalf("unexpected items %#v", items)
+	}
+}
+
+func TestParseVSCodeRecentSplitsVSCodePathLabel(t *testing.T) {
+	raw := `{"entries":[{"label":"/srv/www/example.test/wp-content/themes/example_theme/example (Workspace) [SSH: examplehost]","workspace":{"configPath":"vscode-remote://ssh-remote%2Bexamplehost/srv/www/example.test/wp-content/themes/example_theme/example.code-workspace"}}]}`
+	items := parseVSCodeRecentProjectsForTest(raw, "windows")
+	want := "vscode-remote://ssh-remote+examplehost/srv/www/example.test/wp-content/themes/example_theme/example.code-workspace"
+	if len(items) != 1 || items[0].Name != "example (Workspace) [SSH: examplehost]" || items[0].DisplayName != items[0].Name || items[0].Kind != "vscode-workspace" || items[0].Path != want {
+		t.Fatalf("unexpected items %#v", items)
+	}
+}
+
+func TestParseVSCodeRecentSplitsWindowsPathLabel(t *testing.T) {
+	root := t.TempDir()
+	project := filepath.Join(root, "project")
+	if err := os.Mkdir(project, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw := `{"entries":[{"folderUri":"` + testFileURI(project) + `","label":"C:\\Users\\example\\project"}]}`
+	items := parseVSCodeRecentProjectsForTest(raw, runtime.GOOS)
+	if len(items) != 1 || items[0].Name != "project" || items[0].DisplayName != items[0].Name || items[0].Path != project {
 		t.Fatalf("unexpected items %#v", items)
 	}
 }
@@ -150,7 +172,7 @@ func TestParseVSCodeRecentURIObject(t *testing.T) {
 	raw := `{"entries":[{"folderUri":{"$mid":1,"scheme":"vscode-remote","authority":"ssh-remote+examplehost","path":"/srv/www/example"}}]}`
 	items := parseVSCodeRecentProjectsForTest(raw, "windows")
 	want := "vscode-remote://ssh-remote+examplehost/srv/www/example"
-	if len(items) != 1 || items[0].Name != "example" || items[0].Kind != "vscode-recent" || items[0].Path != want {
+	if len(items) != 1 || items[0].Name != "example [SSH: examplehost]" || items[0].DisplayName != items[0].Name || items[0].Kind != "vscode-recent" || items[0].Path != want {
 		t.Fatalf("unexpected items %#v", items)
 	}
 }

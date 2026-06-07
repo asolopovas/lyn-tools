@@ -61,7 +61,7 @@ func searchProjectIndex(index []searchProject, query string, workspaceShortcut s
 }
 
 func newSearchProject(project Project) searchProject {
-	text := project.Name + " " + project.Kind + " " + project.Path
+	text := project.Name + " " + project.DisplayName + " " + project.Kind + " " + project.Path
 	return searchProject{project: project, text: strings.ToLower(text), words: searchWords(text)}
 }
 

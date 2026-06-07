@@ -226,19 +226,15 @@ func projectsFromVSCodeOpenedPaths(list vscodeOpenedPathsList, goos string) []Pr
 		if path == "" || !vscodeRecentPathExists(path, goos) {
 			continue
 		}
-		seen.add(newProject(vscodeRecentName(path), path, projectKindVSCodeRecent))
+		seen.add(newVSCodeRecentProject("", path, projectKindVSCodeRecent, vscodeRecentURIAuthority(uri, "")))
 	}
 	addEntries := func(entries []vscodeRecentEntry) {
 		for _, entry := range entries {
-			path, kind := vscodeRecentPath(entry, goos)
+			path, kind, remoteAuthority := vscodeRecentPath(entry, goos)
 			if path == "" || !vscodeRecentPathExists(path, goos) {
 				continue
 			}
-			name := strings.TrimSpace(entry.Label)
-			if name == "" {
-				name = vscodeRecentName(path)
-			}
-			seen.add(newProject(name, path, kind))
+			seen.add(newVSCodeRecentProject(entry.Label, path, kind, remoteAuthority))
 		}
 	}
 	addEntries(list.Entries)
@@ -246,26 +242,40 @@ func projectsFromVSCodeOpenedPaths(list vscodeOpenedPathsList, goos string) []Pr
 	return seen.sorted()
 }
 
-func vscodeRecentPath(entry vscodeRecentEntry, goos string) (string, string) {
+func vscodeRecentPath(entry vscodeRecentEntry, goos string) (string, string, string) {
 	for _, value := range []vscodeURI{entry.Workspace.ConfigPath, entry.Workspace.ConfigURI, entry.Workspace.URI} {
 		if value == "" {
 			continue
 		}
 		if path := uriToVSCodeRecentPath(value.String(), entry.RemoteAuthority, goos); path != "" {
-			return path, projectKindVSCodeWorkspace
+			return path, projectKindVSCodeWorkspace, vscodeRecentURIAuthority(value.String(), entry.RemoteAuthority)
 		}
 	}
 	if entry.FolderURI != "" {
 		if path := uriToVSCodeRecentPath(entry.FolderURI.String(), entry.RemoteAuthority, goos); path != "" {
-			return path, projectKindVSCodeRecent
+			return path, projectKindVSCodeRecent, vscodeRecentURIAuthority(entry.FolderURI.String(), entry.RemoteAuthority)
 		}
 	}
 	if entry.FileURI != "" && strings.EqualFold(pathpkg.Ext(entry.FileURI.String()), ".code-workspace") {
 		if path := uriToVSCodeRecentPath(entry.FileURI.String(), entry.RemoteAuthority, goos); path != "" {
-			return path, projectKindVSCodeWorkspace
+			return path, projectKindVSCodeWorkspace, vscodeRecentURIAuthority(entry.FileURI.String(), entry.RemoteAuthority)
 		}
 	}
-	return "", ""
+	return "", "", ""
+}
+
+func vscodeRecentURIAuthority(value string, remoteAuthority string) string {
+	if authority := vscodeRemoteAuthority(remoteAuthority); authority != "" {
+		return authority
+	}
+	if unescaped, err := url.PathUnescape(value); err == nil {
+		value = unescaped
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme != "vscode-remote" {
+		return ""
+	}
+	return vscodeRemoteAuthority(parsed.Host)
 }
 
 func uriToVSCodeRecentPath(value string, remoteAuthority string, goos string) string {
@@ -340,6 +350,84 @@ func vscodeRecentName(path string) string {
 		return strings.TrimSuffix(name, pathpkg.Ext(name))
 	}
 	return workspaceName(path)
+}
+
+func newVSCodeRecentProject(label string, path string, kind string, remoteAuthority string) Project {
+	displayName := vscodeRecentDisplayName(label, path, kind, remoteAuthority)
+	project := newProject(displayName, path, kind)
+	project.DisplayName = displayName
+	return project
+}
+
+func vscodeRecentDisplayName(label string, path string, kind string, remoteAuthority string) string {
+	if name, _ := splitVSCodeRecentLabel(strings.TrimSpace(label)); name != "" {
+		return name
+	}
+	name := vscodeRecentName(path)
+	if kind == projectKindVSCodeWorkspace {
+		name += " (Workspace)"
+	}
+	if suffix := vscodeRemoteSuffix(path, remoteAuthority); suffix != "" {
+		name += " [" + suffix + "]"
+	}
+	return name
+}
+
+func splitVSCodeRecentLabel(label string) (string, string) {
+	if label == "" {
+		return "", ""
+	}
+	if strings.HasSuffix(label, "]") {
+		if suffixIndex := strings.LastIndex(label[:len(label)-1], " ["); suffixIndex != -1 {
+			name, parentPath := splitVSCodeRecentName(label[:suffixIndex])
+			return name + label[suffixIndex:], parentPath
+		}
+	}
+	return splitVSCodeRecentName(label)
+}
+
+func splitVSCodeRecentName(fullPath string) (string, string) {
+	if strings.Contains(fullPath, "/") {
+		name := pathpkg.Base(fullPath)
+		parentPath := pathpkg.Dir(fullPath)
+		if name != "" && name != "." {
+			return name, parentPath
+		}
+		if parentPath == "." {
+			return fullPath, ""
+		}
+		return parentPath, ""
+	}
+	if index := strings.LastIndex(fullPath, `\`); index != -1 {
+		name := fullPath[index+1:]
+		parentPath := fullPath[:index]
+		if name != "" {
+			return name, parentPath
+		}
+		return parentPath, ""
+	}
+	return fullPath, ""
+}
+
+func vscodeRemoteSuffix(path string, remoteAuthority string) string {
+	authority := vscodeRemoteAuthority(remoteAuthority)
+	if authority == "" {
+		if parsed, ok := parseVSCodeRemoteURI(path); ok {
+			authority = parsed.Host
+		}
+	}
+	lower := strings.ToLower(authority)
+	if strings.HasPrefix(lower, "ssh-remote+") {
+		return "SSH: " + authority[len("ssh-remote+"):]
+	}
+	if strings.HasPrefix(lower, "wsl+") {
+		distro := authority[len("wsl+"):]
+		if strings.EqualFold(distro, "default") || distro == "" {
+			return "WSL"
+		}
+		return "WSL: " + distro
+	}
+	return authority
 }
 
 func isWslRemoteAuthority(value string) bool {

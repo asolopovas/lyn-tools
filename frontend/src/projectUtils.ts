@@ -13,6 +13,7 @@ const kindLabels: Record<string, string> = {
 };
 
 export function title(project: Project): string {
+  if (project.displayName) return project.displayName;
   if (project.kind === "vscode-workspace") {
     return `${project.name} (${remoteLabel(project)}Workspace)`;
   }

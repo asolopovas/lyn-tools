@@ -23,6 +23,7 @@ type Project struct {
 	Name           string    `json:"name"`
 	Path           string    `json:"path"`
 	Kind           string    `json:"kind"`
+	DisplayName    string    `json:"displayName,omitempty"`
 	DetectedAt     time.Time `json:"detectedAt"`
 	UsageCount     int       `json:"usageCount"`
 	LastLaunchedAt time.Time `json:"lastLaunchedAt"`
