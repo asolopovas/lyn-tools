@@ -1,0 +1,17 @@
+{
+  "version": "2",
+  "name": "lyn",
+  "assetdir": "frontend/dist",
+  "frontend:dir": "frontend",
+  "frontend:install": "pnpm install --frozen-lockfile --prefer-offline",
+  "frontend:build": "pnpm build",
+  "frontend:dev:watcher": "pnpm dev",
+  "frontend:dev:serverUrl": "http://127.0.0.1:5173",
+  "outputfilename": "lyn",
+  "debounceMS": 100,
+  "info": {
+    "companyName": "lyn-tools",
+    "productName": "Lyn",
+    "productVersion": "0.1.4"
+  }
+}

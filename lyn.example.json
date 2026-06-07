@@ -1,0 +1,26 @@
+{
+  "hotkey": {
+    "binding": "Ctrl+Space"
+  },
+  "cache": {
+    "dir": ""
+  },
+  "scanner": {
+    "roots": ["~/src", "~/www"],
+    "maxDepth": 5,
+    "concurrency": 0,
+    "timeout": "20s",
+    "watch": true
+  },
+  "ui": {
+    "theme": "power-run",
+    "backgroundOpacity": 0.98,
+    "windowPlacement": "center",
+    "clearQueryOnShow": true,
+    "workspaceQueryShortcut": "{"
+  },
+  "startup": {
+    "enabled": false,
+    "startHidden": true
+  }
+}
