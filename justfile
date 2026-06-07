@@ -66,41 +66,50 @@ lint: go-quality-windows
     pnpm --dir {{ frontend }} lint
 
 _go-deps:
-    go mod download
+    @echo "==> Downloading Go modules"
+    @go mod download
 
 _frontend-deps:
-    pnpm --dir {{ frontend }} install --frozen-lockfile --prefer-offline
+    @echo "==> Installing frontend dependencies"
+    @pnpm --dir {{ frontend }} install --frozen-lockfile --prefer-offline
 
 deps: _go-deps _frontend-deps
 
 _frontend-build: _frontend-deps
-    pnpm --dir {{ frontend }} build
+    @echo "==> Building frontend assets"
+    @pnpm --dir {{ frontend }} build
 
 [windows]
 build: _frontend-build
-    New-Item -ItemType Directory -Path "{{ build-bin }}" -Force | Out-Null
-    $wails = Get-Command wails -ErrorAction SilentlyContinue; if ($wails) { wails build -m -nosyncgomod -s } else { go build -tags "desktop,production" -ldflags="-w -s -H windowsgui" -o "{{ build-bin }}/lyn.exe" . }
+    @echo "==> Building Lyn for Windows"
+    @New-Item -ItemType Directory -Path "{{ build-bin }}" -Force | Out-Null
+    @$wails = Get-Command wails -ErrorAction SilentlyContinue; if ($wails) { wails build -m -nosyncgomod -s } else { go build -tags "desktop,production" -ldflags="-w -s -H windowsgui" -o "{{ build-bin }}/lyn.exe" . }
 
 [unix]
 build: _frontend-build
-    mkdir -p {{ build-bin }}
-    if command -v wails >/dev/null 2>&1; then wails build -m -nosyncgomod -s; else go build -o {{ build-bin }}/lyn .; fi
+    @echo "==> Building Lyn"
+    @mkdir -p {{ build-bin }}
+    @if command -v wails >/dev/null 2>&1; then wails build -m -nosyncgomod -s; else go build -o {{ build-bin }}/lyn .; fi
 
 [windows]
 install: build
-    & (Join-Path "{{ justfile_directory() }}" "scripts/install-windows.ps1") -Root "{{ justfile_directory() }}"
+    @echo "==> Installing Lyn"
+    @& (Join-Path "{{ justfile_directory() }}" "scripts/install-windows.ps1") -Root "{{ justfile_directory() }}"
 
 [windows]
 install-main: _sync-main-windows build
-    & (Join-Path "{{ justfile_directory() }}" "scripts/install-windows.ps1") -Root "{{ justfile_directory() }}"
+    @echo "==> Installing Lyn"
+    @& (Join-Path "{{ justfile_directory() }}" "scripts/install-windows.ps1") -Root "{{ justfile_directory() }}"
 
 [linux]
 install: build
-    bash "{{ justfile_directory() }}/scripts/install-linux.sh" "{{ justfile_directory() }}"
+    @echo "==> Installing Lyn"
+    @bash "{{ justfile_directory() }}/scripts/install-linux.sh" "{{ justfile_directory() }}"
 
 [linux]
 install-main: _sync-main-unix build
-    bash "{{ justfile_directory() }}/scripts/install-linux.sh" "{{ justfile_directory() }}"
+    @echo "==> Installing Lyn"
+    @bash "{{ justfile_directory() }}/scripts/install-linux.sh" "{{ justfile_directory() }}"
 
 [macos]
 install:

@@ -226,7 +226,7 @@ func projectsFromVSCodeOpenedPaths(list vscodeOpenedPathsList, goos string) []Pr
 		if path == "" || !vscodeRecentPathExists(path, goos) {
 			continue
 		}
-		seen.add(newVSCodeRecentProject("", path, projectKindVSCodeRecent, vscodeRecentURIAuthority(uri, "")))
+		seen.addIfAbsent(newVSCodeRecentProject("", path, projectKindVSCodeRecent, vscodeRecentURIAuthority(uri, "")))
 	}
 	addEntries := func(entries []vscodeRecentEntry) {
 		for _, entry := range entries {
@@ -234,7 +234,7 @@ func projectsFromVSCodeOpenedPaths(list vscodeOpenedPathsList, goos string) []Pr
 			if path == "" || !vscodeRecentPathExists(path, goos) {
 				continue
 			}
-			seen.add(newVSCodeRecentProject(entry.Label, path, kind, remoteAuthority))
+			seen.addIfAbsent(newVSCodeRecentProject(entry.Label, path, kind, remoteAuthority))
 		}
 	}
 	addEntries(list.Entries)

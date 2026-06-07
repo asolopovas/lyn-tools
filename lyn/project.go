@@ -60,6 +60,13 @@ func (s projectSet) add(project Project) {
 	s[project.Path] = project
 }
 
+func (s projectSet) addIfAbsent(project Project) {
+	if _, ok := s[project.Path]; ok {
+		return
+	}
+	s.add(project)
+}
+
 func (s projectSet) addAll(projects []Project) {
 	for _, project := range projects {
 		s.add(project)

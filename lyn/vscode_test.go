@@ -159,6 +159,14 @@ func TestParseVSCodeRecentSplitsWindowsPathLabel(t *testing.T) {
 	}
 }
 
+func TestParseVSCodeRecentKeepsFirstDuplicatePath(t *testing.T) {
+	raw := `{"entries":[{"workspace":{"configPath":"vscode-remote://wsl%2Bdefault/home/example/project.code-workspace"},"remoteAuthority":"wsl+default"},{"workspace":{"configPath":"vscode-remote://wsl%2Bubuntu/home/example/project.code-workspace"},"remoteAuthority":"wsl+ubuntu"}]}`
+	items := parseVSCodeRecentProjectsForTest(raw, "windows")
+	if len(items) != 1 || items[0].Name != "project (Workspace) [WSL]" || items[0].Path != "/home/example/project.code-workspace" {
+		t.Fatalf("unexpected items %#v", items)
+	}
+}
+
 func TestParseVSCodeRemoteSSHWorkspaceRecent(t *testing.T) {
 	raw := `{"entries":[{"label":"example","workspace":{"configPath":"vscode-remote://ssh-remote%2Bexamplehost/home/deploy/example.code-workspace"}}]}`
 	items := parseVSCodeRecentProjectsForTest(raw, "windows")
