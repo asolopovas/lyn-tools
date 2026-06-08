@@ -52,6 +52,8 @@ const settingsOpen = ref(false);
 const settingsWindow = computed(() => windowMode.value === "settings");
 const themeKeys = computed(() => Object.keys(themes));
 const activeTheme = computed(() => themeByKey(cfg.value?.ui.theme ?? "power-run"));
+const selectedColor = computed(() => cfg.value?.ui.selectionColor || activeTheme.value.selected);
+const selectedTextColor = computed(() => readableTextColor(selectedColor.value));
 const themeStyle = computed(() => ({
   "--lyn-bg": activeTheme.value.background,
   "--lyn-panel": activeTheme.value.panel,
@@ -60,7 +62,8 @@ const themeStyle = computed(() => ({
   "--lyn-text": activeTheme.value.text,
   "--lyn-muted": activeTheme.value.muted,
   "--lyn-accent": activeTheme.value.accent,
-  "--lyn-selected": cfg.value?.ui.selectionColor || activeTheme.value.selected,
+  "--lyn-selected": selectedColor.value,
+  "--lyn-selected-text": selectedTextColor.value,
   "--lyn-opacity": String(cfg.value?.ui.backgroundOpacity ?? 0.98),
 }));
 const launcherHeight = computed(() => (settingsOpen.value ? settingsHeight : 306));
@@ -160,6 +163,19 @@ async function closeSettings(): Promise<void> {
     return;
   }
   settingsOpen.value = false;
+}
+
+function readableTextColor(color: string): "#000000" | "#ffffff" {
+  const match = /^#([\da-f]{6})$/i.exec(color);
+  if (!match) {
+    return "#ffffff";
+  }
+  const value = Number.parseInt(match[1]!, 16);
+  const red = (value >> 16) & 255;
+  const green = (value >> 8) & 255;
+  const blue = value & 255;
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+  return luminance > 0.55 ? "#000000" : "#ffffff";
 }
 
 function prepareForShow(): void {

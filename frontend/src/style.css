@@ -171,10 +171,21 @@ li.selected {
 }
 li.selected::before {
   position: absolute;
-  inset: 0 0 0 64px;
+  inset: 0;
+  z-index: 0;
   background: color-mix(in srgb, var(--lyn-selected) 72%, transparent);
   content: "";
   pointer-events: none;
+}
+li.selected > * {
+  position: relative;
+  z-index: 1;
+}
+li.selected strong,
+li.selected small,
+li.selected .project-icon,
+li.selected .result-action-button {
+  color: var(--lyn-selected-text);
 }
 .project-icon {
   display: grid;
@@ -243,7 +254,7 @@ small {
 .result-action-button:hover {
   border-color: transparent;
   background: var(--lyn-selected);
-  color: var(--lyn-text);
+  color: var(--lyn-selected-text);
 }
 .empty {
   display: grid;
