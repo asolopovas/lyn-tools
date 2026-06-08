@@ -60,7 +60,7 @@ const themeStyle = computed(() => ({
   "--lyn-text": activeTheme.value.text,
   "--lyn-muted": activeTheme.value.muted,
   "--lyn-accent": activeTheme.value.accent,
-  "--lyn-selected": activeTheme.value.selected,
+  "--lyn-selected": cfg.value?.ui.selectionColor || activeTheme.value.selected,
   "--lyn-opacity": String(cfg.value?.ui.backgroundOpacity ?? 0.98),
 }));
 const launcherHeight = computed(() => (settingsOpen.value ? settingsHeight : 306));

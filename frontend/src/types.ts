@@ -70,6 +70,7 @@ export type LynConfig = {
   ui: {
     theme: string;
     backgroundOpacity: number;
+    selectionColor: string;
     windowPlacement: "center";
     clearQueryOnShow: boolean;
     workspaceQueryShortcut: string;

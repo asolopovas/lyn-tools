@@ -167,7 +167,14 @@ li {
   cursor: pointer;
 }
 li.selected {
-  background: var(--lyn-selected);
+  background: transparent;
+}
+li.selected::before {
+  position: absolute;
+  inset: 0 0 0 64px;
+  background: color-mix(in srgb, var(--lyn-selected) 72%, transparent);
+  content: "";
+  pointer-events: none;
 }
 .project-icon {
   display: grid;
@@ -379,7 +386,7 @@ small {
   line-height: 16px;
 }
 .settings-field select,
-.settings-field input:not([type="range"]),
+.settings-field input:not([type="range"]):not([type="color"]),
 .workspace-trigger-row input,
 .root-add-row input {
   width: 100%;
@@ -433,6 +440,22 @@ small {
   margin-top: -6px;
   border-radius: 50%;
   background: var(--settings-accent);
+}
+.color-field-row {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+.settings-field input[type="color"] {
+  width: 44px;
+  height: 32px;
+  border: 1px solid var(--settings-outline);
+  border-radius: 6px;
+  background: var(--settings-surface-high);
+  padding: 3px;
+}
+.settings-field input[type="color"]:focus {
+  border-color: var(--settings-accent);
+  box-shadow: 0 0 0 1px var(--settings-accent);
 }
 .settings-toggle-row {
   display: flex;

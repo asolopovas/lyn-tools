@@ -151,21 +151,29 @@ func (h *keyboardHookHotkey) handleEvent(message uint32, vkCode uint32, onPress 
 			}
 		}
 	}
-	if vkCode == uint32(nativehotkey.KeyD) && (h.isWinDown() || h.pressed.Load() || h.pendingToggle.Load() || h.suppressDKeyup.Load()) {
-		switch message {
-		case wmKeydown, wmSyskeydown:
-			if !h.pressed.Swap(true) {
-				h.pendingToggle.Store(true)
-				h.suppressDKeyup.Store(true)
-			}
-			return true
-		case wmKeyup, wmSyskeyup:
-			h.pressed.Store(false)
+	if vkCode == uint32(nativehotkey.KeyD) {
+		suppressKeyup := h.suppressDKeyup.Load()
+		if (message == wmKeydown || message == wmSyskeydown) && suppressKeyup && !h.pressed.Load() && !h.pendingToggle.Load() && !h.trackedWinDown() {
 			h.suppressDKeyup.Store(false)
-			if h.pendingToggle.Load() && !h.isWinDown() {
-				h.finishPendingToggle(onPress)
+			return false
+		}
+		winChordActive := h.isWinDown() || h.pressed.Load() || h.pendingToggle.Load()
+		if winChordActive || suppressKeyup {
+			switch message {
+			case wmKeydown, wmSyskeydown:
+				if !h.pressed.Swap(true) {
+					h.pendingToggle.Store(true)
+					h.suppressDKeyup.Store(true)
+				}
+				return true
+			case wmKeyup, wmSyskeyup:
+				h.pressed.Store(false)
+				h.suppressDKeyup.Store(false)
+				if h.pendingToggle.Load() && !h.isWinDown() {
+					h.finishPendingToggle(onPress)
+				}
+				return true
 			}
-			return true
 		}
 	}
 	return false

@@ -20,6 +20,9 @@ func TestLoadConfigUsesDefaultWhenMissing(t *testing.T) {
 	if cfg.UI.WindowPlacement != "center" {
 		t.Fatalf("unexpected placement %q", cfg.UI.WindowPlacement)
 	}
+	if cfg.UI.SelectionColor != "#333333" {
+		t.Fatalf("unexpected selection color %q", cfg.UI.SelectionColor)
+	}
 	if !cfg.UI.ClearQueryOnShow {
 		t.Fatal("expected clear query on show default")
 	}
@@ -36,7 +39,7 @@ func TestLoadConfigUsesDefaultWhenMissing(t *testing.T) {
 
 func TestLoadConfigFromJSON(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "lyn.json")
-	data := []byte(`{"scanner":{"roots":["~/src","D:/work"],"maxDepth":7,"timeout":"5s","watch":false},"hotkey":{"binding":"Ctrl+Shift+K"},"ui":{"theme":"tron-legacy","backgroundOpacity":0.85,"windowPlacement":"center","clearQueryOnShow":false,"workspaceQueryShortcut":"["},"startup":{"enabled":true,"startHidden":true}}`)
+	data := []byte(`{"scanner":{"roots":["~/src","D:/work"],"maxDepth":7,"timeout":"5s","watch":false},"hotkey":{"binding":"Ctrl+Shift+K"},"ui":{"theme":"tron-legacy","backgroundOpacity":0.85,"selectionColor":"#20d8ff","windowPlacement":"center","clearQueryOnShow":false,"workspaceQueryShortcut":"["},"startup":{"enabled":true,"startHidden":true}}`)
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -58,6 +61,9 @@ func TestLoadConfigFromJSON(t *testing.T) {
 	}
 	if cfg.UI.WindowPlacement != "center" {
 		t.Fatalf("unexpected placement %q", cfg.UI.WindowPlacement)
+	}
+	if cfg.UI.SelectionColor != "#20d8ff" {
+		t.Fatalf("unexpected selection color %q", cfg.UI.SelectionColor)
 	}
 	if cfg.UI.ClearQueryOnShow {
 		t.Fatal("expected clear query override")

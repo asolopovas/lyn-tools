@@ -84,6 +84,10 @@ function addRootFromInput(event: KeyboardEvent): void {
               step="0.01"
             />
           </label>
+          <label class="settings-field settings-card-row color-field-row">
+            <span>Item highlighter</span>
+            <input v-model="cfg.ui.selectionColor" type="color" />
+          </label>
           <label class="settings-field settings-card-row">
             <span>Launcher Position</span>
             <select v-model="cfg.ui.windowPlacement">

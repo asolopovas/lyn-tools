@@ -15,6 +15,7 @@ const (
 	defaultScannerTimeout    = Duration("20s")
 	defaultTheme             = "power-run"
 	defaultBackgroundOpacity = 0.98
+	defaultSelectionColor    = "#333333"
 	defaultWindowPlacement   = "center"
 	defaultWorkspaceShortcut = "{"
 )
@@ -51,6 +52,7 @@ type ScannerConfig struct {
 type UIConfig struct {
 	Theme                  string  `json:"theme"`
 	BackgroundOpacity      float64 `json:"backgroundOpacity"`
+	SelectionColor         string  `json:"selectionColor"`
 	WindowPlacement        string  `json:"windowPlacement"`
 	ClearQueryOnShow       bool    `json:"clearQueryOnShow"`
 	WorkspaceQueryShortcut string  `json:"workspaceQueryShortcut"`
@@ -128,6 +130,7 @@ func DefaultConfig() Config {
 		UI: UIConfig{
 			Theme:                  defaultTheme,
 			BackgroundOpacity:      defaultBackgroundOpacity,
+			SelectionColor:         defaultSelectionColor,
 			WindowPlacement:        defaultWindowPlacement,
 			ClearQueryOnShow:       true,
 			WorkspaceQueryShortcut: defaultWorkspaceShortcut,
@@ -164,12 +167,27 @@ func NormalizeConfig(cfg Config) (Config, error) {
 	if cfg.UI.BackgroundOpacity <= 0 || cfg.UI.BackgroundOpacity > 1 {
 		cfg.UI.BackgroundOpacity = defaultBackgroundOpacity
 	}
+	if !isHexColor(cfg.UI.SelectionColor) {
+		cfg.UI.SelectionColor = defaultSelectionColor
+	}
 	cfg.UI.WindowPlacement = defaultWindowPlacement
 	cfg.UI.WorkspaceQueryShortcut = normalizeShortcutCharacter(cfg.UI.WorkspaceQueryShortcut, defaultWorkspaceShortcut)
 	if cfg.Scanner.Timeout.Duration() <= 0 {
 		return cfg, errors.New("scanner timeout must be positive")
 	}
 	return cfg, nil
+}
+
+func isHexColor(value string) bool {
+	if len(value) != 7 || value[0] != '#' {
+		return false
+	}
+	for _, char := range value[1:] {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') && (char < 'A' || char > 'F') {
+			return false
+		}
+	}
+	return true
 }
 
 func normalizeShortcutCharacter(value string, fallback string) string {

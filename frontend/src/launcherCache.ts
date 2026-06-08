@@ -92,6 +92,7 @@ function isLynConfig(value: unknown): value is LynConfig {
     isRecord(ui) &&
     hasString(ui, "theme") &&
     hasNumber(ui, "backgroundOpacity") &&
+    hasString(ui, "selectionColor") &&
     hasString(ui, "windowPlacement") &&
     hasBoolean(ui, "clearQueryOnShow") &&
     hasString(ui, "workspaceQueryShortcut")

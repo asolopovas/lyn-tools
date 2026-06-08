@@ -37,6 +37,7 @@ const config = {
   ui: {
     theme: "power-run",
     backgroundOpacity: 0.98,
+    selectionColor: "#333333",
     windowPlacement: "center",
     clearQueryOnShow: true,
     workspaceQueryShortcut: "{",

@@ -112,6 +112,27 @@ func TestWindowsDesktopHotkeySuppressesDKeyupAfterWinReleasesFirst(t *testing.T)
 	}
 }
 
+func TestWindowsDesktopHotkeyStaleSuppressionDoesNotBlockNormalDKeydown(t *testing.T) {
+	stubDesktopHotkeySideEffects(t)
+	originalAsyncKeyDown := asyncKeyDown
+	asyncKeyDown = func(vkCode uint32) bool { return vkCode == vkLWin }
+	t.Cleanup(func() { asyncKeyDown = originalAsyncKeyDown })
+	hook := &keyboardHookHotkey{}
+	pressed := make(chan struct{}, 1)
+	hook.suppressDKeyup.Store(true)
+	if hook.handleEvent(wmKeydown, uint32(keys["d"]), func() { pressed <- struct{}{} }) {
+		t.Fatal("normal d keydown after shortcut should pass through")
+	}
+	if hook.suppressDKeyup.Load() {
+		t.Fatal("expected stale d keyup suppression to be cleared")
+	}
+	select {
+	case <-pressed:
+		t.Fatal("normal d keydown should not trigger shortcut")
+	default:
+	}
+}
+
 func TestWindowsDesktopHotkeySuppressesRepeatsAndRunsOnce(t *testing.T) {
 	stubDesktopHotkeySideEffects(t)
 	hook := &keyboardHookHotkey{}
