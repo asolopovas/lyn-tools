@@ -13,4 +13,5 @@ build/bin
 *.log
 coverage
 releases/
+graphify-out/
 .DS_Store
