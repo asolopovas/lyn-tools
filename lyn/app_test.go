@@ -47,6 +47,34 @@ func TestRestartStartsProcessThenQuits(t *testing.T) {
 	}
 }
 
+func TestConfigReloadsChangesSavedBySettingsProcess(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("AppData", configDir)
+	t.Setenv("XDG_CONFIG_HOME", configDir)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir())
+	initial := DefaultConfig()
+	savedInitial, err := SaveConfig(initial)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := NewApp()
+	app.UseConfig(savedInitial)
+	external := savedInitial
+	external.UI.Theme = "tron-legacy"
+	external, err = SaveConfig(external)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if external.UI.Theme != "tron-legacy" {
+		t.Fatalf("expected saved theme, got %q", external.UI.Theme)
+	}
+	reloaded := app.Config()
+	if reloaded.UI.Theme != "tron-legacy" {
+		t.Fatalf("expected reloaded theme, got %q", reloaded.UI.Theme)
+	}
+}
+
 func TestProjectsReadsVSCodeRecentsLiveWithoutCopyingToStore(t *testing.T) {
 	appData := t.TempDir()
 	t.Setenv("AppData", appData)

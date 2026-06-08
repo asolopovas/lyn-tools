@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -165,9 +166,56 @@ func (a *App) shutdown(context.Context) {
 }
 
 func (a *App) Config() Config {
+	if err := a.reloadConfigFromDisk(); err != nil {
+		a.debugLog("config.reload.error", "error", err)
+	}
 	a.stateMu.Lock()
 	defer a.stateMu.Unlock()
 	return a.config
+}
+
+func (a *App) reloadConfigFromDisk() error {
+	a.stateMu.Lock()
+	path := a.config.Path
+	a.stateMu.Unlock()
+	loaded, err := LoadConfig(path)
+	if err != nil {
+		return err
+	}
+	a.applyReloadedConfig(loaded)
+	return nil
+}
+
+func (a *App) applyReloadedConfig(loaded Config) {
+	a.stateMu.Lock()
+	old := a.config
+	if reflect.DeepEqual(old, loaded) {
+		a.stateMu.Unlock()
+		return
+	}
+	ctx := a.ctx
+	oldHotkey := a.hotkey
+	launcherMode := a.mode != SettingsWindowMode
+	hotkeyChanged := old.Hotkey.Binding != loaded.Hotkey.Binding
+	scannerChanged := !reflect.DeepEqual(old.Scanner, loaded.Scanner)
+	a.config = loaded
+	if launcherMode && hotkeyChanged {
+		a.hotkey = nil
+	}
+	a.stateMu.Unlock()
+	a.debugLog("config.reloaded", "path", loaded.Path, "theme", loaded.UI.Theme)
+	if !launcherMode || ctx == nil {
+		return
+	}
+	if hotkeyChanged {
+		if oldHotkey != nil {
+			logRuntimeError(ctx, oldHotkey.Unregister())
+		}
+		a.registerHotkey()
+	}
+	if scannerChanged {
+		a.restartWatcher()
+	}
 }
 
 func (a *App) snapshot() (context.Context, Config, *Store) {
