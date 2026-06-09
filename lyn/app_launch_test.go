@@ -10,7 +10,9 @@ import (
 
 func TestAppLaunchRoutesFrontendRequestAndRecordsUsage(t *testing.T) {
 	original := launchRequest
-	t.Cleanup(func() { launchRequest = original })
+	originalAsync := launchAsync
+	launchAsync = func(fn func()) { fn() }
+	t.Cleanup(func() { launchRequest = original; launchAsync = originalAsync })
 	var got launch.Request
 	launchRequest = func(request launch.Request) launch.Result {
 		got = request

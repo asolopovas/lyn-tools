@@ -32,12 +32,10 @@ func (a *App) registerLaunchKeyInterceptor() {
 			request.Action = action
 		}
 		a.debugLog("launch.native.shortcut", "action", request.Action, "path", request.Path)
-		go func() {
-			result := a.Launch(request)
-			if result.Error == "" && launch.NormalizedAction(request.Action) != "reveal" {
-				a.Hide()
-			}
-		}()
+		if launch.NormalizedAction(request.Action) != "reveal" {
+			a.Hide()
+		}
+		go a.Launch(request)
 		return true
 	})
 	a.stateMu.Lock()

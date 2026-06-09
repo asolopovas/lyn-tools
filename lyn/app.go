@@ -369,16 +369,25 @@ func (a *App) Scan() ScanResult {
 
 var launchRequest = launch.Launch
 
+var launchAsync = func(fn func()) { go fn() }
+
 func (a *App) Launch(request launch.Request) launch.Result {
 	a.debugLog("launch.begin", "action", launch.NormalizedAction(request.Action), "path", request.Path)
 	result := launchRequest(request)
 	a.debugLog("launch.end", "command", result.Command, "args", strings.Join(result.Args, " "), "error", result.Error)
-	ctx, _, store := a.snapshot()
-	if result.Error == "" && request.Action != "reveal" && store != nil {
-		logRuntimeError(ctx, store.RecordLaunch(ctx, request.Path))
-		a.updateSearchIndexLaunch(request.Path)
+	if result.Error == "" && request.Action != "reveal" {
+		launchAsync(func() { a.recordLaunch(request.Path) })
 	}
 	return result
+}
+
+func (a *App) recordLaunch(path string) {
+	ctx, _, store := a.snapshot()
+	if store == nil {
+		return
+	}
+	logRuntimeError(ctx, store.RecordLaunch(ctx, path))
+	a.updateSearchIndexLaunch(path)
 }
 
 func (a *App) SetLaunchSelection(request launch.Request) {
