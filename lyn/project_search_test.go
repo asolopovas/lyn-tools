@@ -40,6 +40,35 @@ func TestSearchProjectsPrefersExactMatches(t *testing.T) {
 	}
 }
 
+func TestSearchProjectsMatchesGluedRemoteTerms(t *testing.T) {
+	projects := []Project{
+		{Name: "example", Path: "/home/me/src/example", Kind: projectKindGo},
+		{Name: "example", Path: "vscode-remote://ssh-remote+examplehost/srv/www/example", Kind: projectKindVSCodeRecent},
+		{Name: "example", Path: `\\wsl.localhost\Ubuntu\home\me\src\example`, Kind: projectKindVSCodeRecent},
+	}
+	for _, query := range []string{"examplessh", "sshexample"} {
+		matches := searchProjects(projects, query, "{")
+		if len(matches) != 1 || matches[0].Path != "vscode-remote://ssh-remote+examplehost/srv/www/example" {
+			t.Fatalf("query %q: expected only the SSH recent, got %#v", query, matches)
+		}
+	}
+	for _, query := range []string{"examplewsl", "wslexample"} {
+		matches := searchProjects(projects, query, "{")
+		if len(matches) != 1 || matches[0].Path != `\\wsl.localhost\Ubuntu\home\me\src\example` {
+			t.Fatalf("query %q: expected only the WSL recent, got %#v", query, matches)
+		}
+	}
+}
+
+func TestSearchProjectsGluedTermIgnoresUnrelatedProjects(t *testing.T) {
+	projects := []Project{
+		{Name: "example", Path: "/home/me/src/example", Kind: projectKindGo},
+	}
+	if matches := searchProjects(projects, "sshexample", "{"); len(matches) != 0 {
+		t.Fatalf("expected no match for a local project, got %#v", matches)
+	}
+}
+
 func TestSearchProjectsWorkspaceShortcutExcludesApps(t *testing.T) {
 	projects := []Project{
 		{Name: "Calculator", Path: "/calculator", Kind: projectKindApp},

@@ -9,6 +9,7 @@ import (
 const (
 	maxSearchMatches = 12
 	noSearchMatch    = 99
+	minLooseTermPart = 2
 )
 
 type searchProject struct {
@@ -70,21 +71,41 @@ func projectSearchScore(item searchProject, text string) int {
 		return 0
 	}
 	words := searchWords(text)
-	usedFuzzy := false
+	approximate := false
 	for _, term := range words {
-		if slices.ContainsFunc(item.words, func(word string) bool { return strings.Contains(word, term) }) {
+		if termInWords(item.words, term) {
 			continue
 		}
 		if slices.ContainsFunc(item.words, func(word string) bool { return fuzzyWordMatch(term, word) }) {
-			usedFuzzy = true
+			approximate = true
+			continue
+		}
+		if looseTermMatch(item.words, term) {
+			approximate = true
 			continue
 		}
 		return noSearchMatch
 	}
-	if usedFuzzy {
+	if approximate {
 		return 2
 	}
 	return 1
+}
+
+func termInWords(words []string, term string) bool {
+	return slices.ContainsFunc(words, func(word string) bool { return strings.Contains(word, term) })
+}
+
+func looseTermMatch(words []string, term string) bool {
+	if len(term) < 2*minLooseTermPart {
+		return false
+	}
+	for cut := minLooseTermPart; cut <= len(term)-minLooseTermPart; cut++ {
+		if termInWords(words, term[:cut]) && termInWords(words, term[cut:]) {
+			return true
+		}
+	}
+	return false
 }
 
 func searchWords(text string) []string {
