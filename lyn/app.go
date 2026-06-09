@@ -107,8 +107,7 @@ func (a *App) startup(ctx context.Context) {
 	}
 	placeWindow(a.ctx)
 	prepareWindowActivation()
-	activateWindow()
-	runtime.WindowExecJS(a.ctx, focusQueryScript())
+	a.focusAndActivate(a.ctx)
 	a.startWindowAutoHideMonitor(a.ctx, a.showSequence)
 	a.debugLog("startup.shown")
 }
@@ -182,11 +181,11 @@ func (a *App) reloadConfigFromDisk() error {
 	if err != nil {
 		return err
 	}
-	a.applyReloadedConfig(loaded)
+	a.reactToConfigChange(loaded)
 	return nil
 }
 
-func (a *App) applyReloadedConfig(loaded Config) {
+func (a *App) reactToConfigChange(loaded Config) {
 	a.stateMu.Lock()
 	old := a.config
 	if reflect.DeepEqual(old, loaded) {
@@ -237,6 +236,18 @@ func (a *App) setSearchIndex(projects []Project) {
 	a.stateMu.Unlock()
 }
 
+func (a *App) indexProjects(cacheable, recent []Project) []Project {
+	items := mergeProjects(cacheable, recent)
+	a.setSearchIndex(items)
+	return items
+}
+
+func scanAppSources(ctx context.Context) (apps, recent []Project, appErr, recentErr error) {
+	apps, appErr = ScanApplications(ctx)
+	recent, recentErr = ScanVSCodeRecentProjects(ctx)
+	return apps, recent, appErr, recentErr
+}
+
 func (a *App) updateSearchIndexLaunch(path string) {
 	index := a.currentSearchIndex()
 	if len(index) == 0 {
@@ -265,24 +276,7 @@ func (a *App) SaveConfig(config Config) (Config, error) {
 	if err := startup.Configure(saved.Startup.Enabled); err != nil {
 		return saved, err
 	}
-	a.stateMu.Lock()
-	ctx := a.ctx
-	oldHotkey := a.hotkey
-	settingsMode := a.mode == SettingsWindowMode
-	a.config = saved
-	if !settingsMode {
-		a.hotkey = nil
-	}
-	a.stateMu.Unlock()
-	if settingsMode {
-		a.debugLog("config.save.end", "path", saved.Path)
-		return saved, nil
-	}
-	if oldHotkey != nil {
-		logRuntimeError(ctx, oldHotkey.Unregister())
-	}
-	a.registerHotkey()
-	a.restartWatcher()
+	a.reactToConfigChange(saved)
 	a.debugLog("config.save.end", "path", saved.Path)
 	return saved, nil
 }
@@ -312,9 +306,7 @@ func (a *App) projects() ([]Project, error) {
 			return nil, err
 		}
 		if len(projects) > 0 {
-			projects = a.withVSCodeRecentProjects(ctx, projects)
-			a.setSearchIndex(projects)
-			return projects, nil
+			return a.indexProjects(projects, a.liveRecents(ctx)), nil
 		}
 	}
 	items, sourceError, err := a.rescan()
@@ -326,13 +318,10 @@ func (a *App) projects() ([]Project, error) {
 
 func (a *App) RefreshProjects() ([]Project, error) {
 	ctx, _, store := a.snapshot()
-	apps, applicationError := ScanApplications(ctx)
-	recent, recentProjectError := ScanVSCodeRecentProjects(ctx)
-	found := mergeProjects(apps, recent)
+	apps, recent, applicationError, recentProjectError := scanAppSources(ctx)
 	sourceError := firstError(applicationError, recentProjectError)
 	if store == nil {
-		a.setSearchIndex(found)
-		return found, sourceError
+		return a.indexProjects(apps, recent), sourceError
 	}
 	if err := updateProjectKind(ctx, store, apps, projectKindApp, applicationError); err != nil {
 		return nil, err
@@ -341,9 +330,7 @@ func (a *App) RefreshProjects() ([]Project, error) {
 	if err != nil {
 		return nil, err
 	}
-	merged := mergeProjects(projects, found)
-	a.setSearchIndex(merged)
-	return merged, sourceError
+	return a.indexProjects(mergeProjects(projects, apps), recent), sourceError
 }
 
 func updateProjectKind(ctx context.Context, store *Store, projects []Project, kind string, sourceError error) error {
@@ -576,13 +563,13 @@ func (a *App) newWatcher(ctx context.Context, scanner ScannerConfig) *Watcher {
 	return watcher
 }
 
-func (a *App) withVSCodeRecentProjects(ctx context.Context, projects []Project) []Project {
+func (a *App) liveRecents(ctx context.Context) []Project {
 	recent, err := ScanVSCodeRecentProjects(ctx)
 	if err != nil {
 		a.debugLog("vscode-recent.live.error", "error", err)
-		return projects
+		return nil
 	}
-	return mergeProjects(projects, recent)
+	return recent
 }
 
 func (a *App) rescan() ([]Project, error, error) {
@@ -595,10 +582,8 @@ func (a *App) rescanUnlocked() ([]Project, error, error) {
 	ctx, config, store := a.snapshot()
 	a.debugLog("scan.begin", "roots", len(config.Scanner.Roots), "maxDepth", config.Scanner.MaxDepth)
 	items, err := ScanProjects(ctx, config.Scanner)
-	apps, applicationError := ScanApplications(ctx)
-	recent, recentProjectError := ScanVSCodeRecentProjects(ctx)
+	apps, recent, applicationError, recentProjectError := scanAppSources(ctx)
 	cacheItems := mergeProjects(items, apps)
-	items = mergeProjects(cacheItems, recent)
 	if store != nil {
 		var storeError error
 		if err == nil && applicationError == nil {
@@ -611,7 +596,7 @@ func (a *App) rescanUnlocked() ([]Project, error, error) {
 		}
 	}
 	sourceError := firstError(applicationError, recentProjectError)
-	a.setSearchIndex(items)
+	items = a.indexProjects(cacheItems, recent)
 	a.debugLog("scan.end", "items", len(items), "error", err, "sourceError", sourceError)
 	return items, sourceError, err
 }
@@ -669,10 +654,18 @@ func (a *App) showLauncher(ctx context.Context, sequence uint64) {
 	runtime.WindowUnminimise(ctx)
 	prepareWindowActivation()
 	runtime.WindowShow(ctx)
-	activateWindow()
 	a.debugLog("window.show.end", "sequence", sequence)
-	runtime.WindowExecJS(ctx, focusQueryScript())
+	a.focusAndActivate(ctx)
 	a.startWindowAutoHideMonitor(ctx, sequence)
+	a.startFocusRetries(ctx, sequence)
+}
+
+func (a *App) focusAndActivate(ctx context.Context) {
+	activateWindow()
+	runtime.WindowExecJS(ctx, focusQueryScript())
+}
+
+func (a *App) startFocusRetries(ctx context.Context, sequence uint64) {
 	go func() {
 		for _, delay := range []time.Duration{60, 140, 280, 520} {
 			time.Sleep(delay * time.Millisecond)
@@ -682,8 +675,7 @@ func (a *App) showLauncher(ctx context.Context, sequence uint64) {
 			if !current {
 				return
 			}
-			activateWindow()
-			runtime.WindowExecJS(ctx, focusQueryScript())
+			a.focusAndActivate(ctx)
 		}
 	}()
 }
