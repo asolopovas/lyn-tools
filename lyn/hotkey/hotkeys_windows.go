@@ -152,6 +152,7 @@ func (h *keyboardHookHotkey) handleEvent(message uint32, vkCode uint32, onPress 
 		}
 	}
 	if vkCode == uint32(nativehotkey.KeyD) {
+		h.clearStaleWinState()
 		suppressKeyup := h.suppressDKeyup.Load()
 		if (message == wmKeydown || message == wmSyskeydown) && suppressKeyup && !h.pressed.Load() && !h.pendingToggle.Load() && !h.trackedWinDown() {
 			h.suppressDKeyup.Store(false)
@@ -193,6 +194,26 @@ func (h *keyboardHookHotkey) trackedWinDown() bool {
 
 func (h *keyboardHookHotkey) isWinDown() bool {
 	return h.trackedWinDown() || asyncKeyDown(vkLWin) || asyncKeyDown(vkRWin)
+}
+
+func (h *keyboardHookHotkey) clearStaleWinState() {
+	if !h.trackedWinDown() {
+		return
+	}
+	stale := false
+	if h.lWinDown.Load() && !asyncKeyDown(vkLWin) {
+		h.lWinDown.Store(false)
+		stale = true
+	}
+	if h.rWinDown.Load() && !asyncKeyDown(vkRWin) {
+		h.rWinDown.Store(false)
+		stale = true
+	}
+	if stale && !h.isWinDown() {
+		h.pressed.Store(false)
+		h.pendingToggle.Store(false)
+		h.suppressDKeyup.Store(false)
+	}
 }
 
 func (h *keyboardHookHotkey) finishPendingToggle(onPress func()) {

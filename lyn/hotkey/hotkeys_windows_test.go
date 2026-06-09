@@ -19,9 +19,11 @@ func TestWindowsDesktopHotkeyDetected(t *testing.T) {
 
 func TestWindowsDesktopHotkeyHookSuppressesDesktopAndRunsOnceAfterWinRelease(t *testing.T) {
 	suppressions, releases := stubDesktopHotkeySideEffects(t)
+	winDown := stubAsyncWinState(t)
 	hook := &keyboardHookHotkey{}
 	pressed := make(chan struct{}, 2)
 	onPress := func() { pressed <- struct{}{} }
+	*winDown = true
 	if hook.handleEvent(wmKeydown, vkLWin, onPress) {
 		t.Fatal("win down should pass through")
 	}
@@ -36,6 +38,7 @@ func TestWindowsDesktopHotkeyHookSuppressesDesktopAndRunsOnceAfterWinRelease(t *
 	if !hook.handleEvent(wmKeyup, uint32(keys["d"]), onPress) {
 		t.Fatal("win+d up should be suppressed")
 	}
+	*winDown = false
 	if hook.handleEvent(wmKeyup, vkLWin, onPress) {
 		t.Fatal("win up should pass through so Windows releases the key")
 	}
@@ -95,14 +98,17 @@ func TestWindowsDesktopHotkeyUsesAsyncWinState(t *testing.T) {
 
 func TestWindowsDesktopHotkeySuppressesDKeyupAfterWinReleasesFirst(t *testing.T) {
 	stubDesktopHotkeySideEffects(t)
+	winDown := stubAsyncWinState(t)
 	hook := &keyboardHookHotkey{}
 	pressed := make(chan struct{}, 1)
+	*winDown = true
 	if hook.handleEvent(wmKeydown, vkLWin, func() { pressed <- struct{}{} }) {
 		t.Fatal("win down should pass through")
 	}
 	if !hook.handleEvent(wmKeydown, uint32(keys["d"]), func() { pressed <- struct{}{} }) {
 		t.Fatal("win+d down should be suppressed")
 	}
+	*winDown = false
 	if hook.handleEvent(wmKeyup, vkLWin, func() { pressed <- struct{}{} }) {
 		t.Fatal("win up should pass through")
 	}
@@ -135,9 +141,11 @@ func TestWindowsDesktopHotkeyStaleSuppressionDoesNotBlockNormalDKeydown(t *testi
 
 func TestWindowsDesktopHotkeySuppressesRepeatsAndRunsOnce(t *testing.T) {
 	stubDesktopHotkeySideEffects(t)
+	winDown := stubAsyncWinState(t)
 	hook := &keyboardHookHotkey{}
 	pressed := make(chan struct{}, 2)
 	onPress := func() { pressed <- struct{}{} }
+	*winDown = true
 	hook.handleEvent(wmKeydown, vkLWin, onPress)
 	if !hook.handleEvent(wmKeydown, uint32(keys["d"]), onPress) {
 		t.Fatal("first win+d down should be suppressed")
@@ -148,6 +156,7 @@ func TestWindowsDesktopHotkeySuppressesRepeatsAndRunsOnce(t *testing.T) {
 	if !hook.handleEvent(wmKeyup, uint32(keys["d"]), onPress) {
 		t.Fatal("win+d up should be suppressed")
 	}
+	*winDown = false
 	hook.handleEvent(wmKeyup, vkLWin, onPress)
 	waitForSignal(t, pressed, "launch callback")
 	select {
@@ -155,6 +164,62 @@ func TestWindowsDesktopHotkeySuppressesRepeatsAndRunsOnce(t *testing.T) {
 		t.Fatal("expected one launch callback")
 	case <-time.After(150 * time.Millisecond):
 	}
+}
+
+func TestWindowsDesktopHotkeyRecoversWhenWinKeyupWasMissed(t *testing.T) {
+	stubDesktopHotkeySideEffects(t)
+	winDown := stubAsyncWinState(t)
+	hook := &keyboardHookHotkey{}
+	pressed := make(chan struct{}, 1)
+	onPress := func() { pressed <- struct{}{} }
+	*winDown = true
+	hook.handleEvent(wmKeydown, vkLWin, onPress)
+	*winDown = false
+	if hook.handleEvent(wmKeydown, uint32(keys["d"]), onPress) {
+		t.Fatal("d keydown after missed win keyup should pass through")
+	}
+	if hook.handleEvent(wmKeyup, uint32(keys["d"]), onPress) {
+		t.Fatal("d keyup after missed win keyup should pass through")
+	}
+	select {
+	case <-pressed:
+		t.Fatal("missed win keyup should not trigger shortcut")
+	default:
+	}
+}
+
+func TestWindowsDesktopHotkeyRecoversWhenChordTeardownWasMissed(t *testing.T) {
+	stubDesktopHotkeySideEffects(t)
+	winDown := stubAsyncWinState(t)
+	hook := &keyboardHookHotkey{}
+	pressed := make(chan struct{}, 1)
+	onPress := func() { pressed <- struct{}{} }
+	*winDown = true
+	hook.handleEvent(wmKeydown, vkLWin, onPress)
+	hook.handleEvent(wmKeydown, uint32(keys["d"]), onPress)
+	*winDown = false
+	if hook.handleEvent(wmKeydown, uint32(keys["d"]), onPress) {
+		t.Fatal("d keydown after missed chord teardown should pass through")
+	}
+	if hook.handleEvent(wmKeyup, uint32(keys["d"]), onPress) {
+		t.Fatal("d keyup after missed chord teardown should pass through")
+	}
+	select {
+	case <-pressed:
+		t.Fatal("missed chord teardown should not trigger shortcut")
+	default:
+	}
+}
+
+func stubAsyncWinState(t *testing.T) *bool {
+	t.Helper()
+	down := false
+	original := asyncKeyDown
+	asyncKeyDown = func(vkCode uint32) bool {
+		return down && (vkCode == vkLWin || vkCode == vkRWin)
+	}
+	t.Cleanup(func() { asyncKeyDown = original })
+	return &down
 }
 
 func stubDesktopHotkeySideEffects(t *testing.T) (chan struct{}, chan struct{}) {

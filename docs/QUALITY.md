@@ -45,6 +45,7 @@ Applies to every change. Prefer mechanical enforcement over reminders.
 - Do not rely only on WebView keyboard/focus delivery for critical launcher actions; provide native fallback where practical.
 - Avoid broad draggable regions in frameless windows; mark interactive regions `--wails-draggable: no-drag`.
 - Startup, shutdown, tray, watcher, and hotkey registrations must be idempotent and cleanly tear down.
+- Low-level keyboard hooks miss events during secure desktop (lock screen, UAC) and hook timeouts; any key state tracked from hook events must reconcile against `GetAsyncKeyState` before suppressing input, or a missed Win keyup permanently swallows the hotkey letter.
 
 ## Validation
 
