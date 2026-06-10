@@ -23,6 +23,7 @@ const (
 	vkLWin         = 0x5B
 	vkRWin         = 0x5C
 	keyeventfKeyup = 0x0002
+	llkhfInjected  = 0x10
 )
 
 var (
@@ -49,7 +50,6 @@ type keyboardHookHotkey struct {
 	suppressDKeyup atomic.Bool
 	lWinDown       atomic.Bool
 	rWinDown       atomic.Bool
-	pendingToggle  atomic.Bool
 }
 
 type keyboardHookEvent struct {
@@ -99,7 +99,7 @@ func registerKeyboardHookHotkey(onPress func()) (*keyboardHookHotkey, error) {
 	ready := make(chan error, 1)
 	hook.callback = windows.NewCallback(func(nCode int, wParam uintptr, lParam unsafe.Pointer) uintptr {
 		event := (*keyboardHookEvent)(lParam)
-		if nCode == 0 && hook.handleEvent(uint32(wParam), event.VkCode, onPress) {
+		if nCode == 0 && event.Flags&llkhfInjected == 0 && hook.handleEvent(uint32(wParam), event.VkCode, onPress) {
 			return 1
 		}
 		result, _, _ := procCallNextHookEx.Call(0, uintptr(nCode), wParam, uintptr(lParam))
@@ -145,36 +145,36 @@ func (h *keyboardHookHotkey) handleEvent(message uint32, vkCode uint32, onPress 
 			h.setWinDown(vkCode, true)
 		case wmKeyup, wmSyskeyup:
 			h.setWinDown(vkCode, false)
-			h.pressed.Store(false)
-			if h.pendingToggle.Load() && !h.trackedWinDown() {
-				h.finishPendingToggle(onPress)
+			if !h.trackedWinDown() {
+				h.pressed.Store(false)
 			}
 		}
+		return false
 	}
-	if vkCode == uint32(nativehotkey.KeyD) {
-		h.clearStaleWinState()
-		suppressKeyup := h.suppressDKeyup.Load()
-		if (message == wmKeydown || message == wmSyskeydown) && suppressKeyup && !h.pressed.Load() && !h.pendingToggle.Load() && !h.trackedWinDown() {
+	if vkCode != uint32(nativehotkey.KeyD) {
+		return false
+	}
+	h.clearStaleWinState()
+	suppressKeyup := h.suppressDKeyup.Load()
+	switch message {
+	case wmKeydown, wmSyskeydown:
+		if suppressKeyup && !h.pressed.Load() && !h.trackedWinDown() {
 			h.suppressDKeyup.Store(false)
 			return false
 		}
-		winChordActive := h.isWinDown() || h.pressed.Load() || h.pendingToggle.Load()
-		if winChordActive || suppressKeyup {
-			switch message {
-			case wmKeydown, wmSyskeydown:
-				if !h.pressed.Swap(true) {
-					h.pendingToggle.Store(true)
-					h.suppressDKeyup.Store(true)
-				}
-				return true
-			case wmKeyup, wmSyskeyup:
-				h.pressed.Store(false)
-				h.suppressDKeyup.Store(false)
-				if h.pendingToggle.Load() && !h.isWinDown() {
-					h.finishPendingToggle(onPress)
-				}
-				return true
+		if h.isWinDown() || h.pressed.Load() {
+			if !h.pressed.Swap(true) {
+				h.suppressDKeyup.Store(true)
+				suppressStartMenuAfterWinChord()
+				go finishWindowsDesktopHotkey(onPress)
 			}
+			return true
+		}
+	case wmKeyup, wmSyskeyup:
+		if h.pressed.Load() || suppressKeyup {
+			h.pressed.Store(false)
+			h.suppressDKeyup.Store(false)
+			return true
 		}
 	}
 	return false
@@ -211,17 +211,8 @@ func (h *keyboardHookHotkey) clearStaleWinState() {
 	}
 	if stale && !h.isWinDown() {
 		h.pressed.Store(false)
-		h.pendingToggle.Store(false)
 		h.suppressDKeyup.Store(false)
 	}
-}
-
-func (h *keyboardHookHotkey) finishPendingToggle(onPress func()) {
-	if !h.pendingToggle.Swap(false) {
-		return
-	}
-	suppressStartMenuAfterWinChord()
-	go finishWindowsDesktopHotkey(onPress)
 }
 
 var asyncKeyDown = func(vkCode uint32) bool {
@@ -234,14 +225,7 @@ var suppressStartMenuAfterWinChord = func() {
 	procKeybdEvent.Call(uintptr(vkControl), 0, keyeventfKeyup, 0)
 }
 
-var releaseWinDKeyState = func() {
-	procKeybdEvent.Call(uintptr(vkLWin), 0, keyeventfKeyup, 0)
-	procKeybdEvent.Call(uintptr(vkRWin), 0, keyeventfKeyup, 0)
-	procKeybdEvent.Call(uintptr(nativehotkey.KeyD), 0, keyeventfKeyup, 0)
-}
-
 var finishWindowsDesktopHotkey = func(onPress func()) {
-	releaseWinDKeyState()
 	onPress()
 }
 
