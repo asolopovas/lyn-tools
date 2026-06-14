@@ -45,6 +45,7 @@ Applies to every change. Prefer mechanical enforcement over reminders.
 - Do not rely only on WebView keyboard/focus delivery for critical launcher actions; provide native fallback where practical.
 - Avoid broad draggable regions in frameless windows; mark interactive regions `--wails-draggable: no-drag`.
 - Startup, shutdown, tray, watcher, and hotkey registrations must be idempotent and cleanly tear down.
+- Line endings are pinned to LF via `.gitattributes` (`* text=auto eol=lf`). `core.autocrlf=true` would otherwise check Go/TS files out as CRLF on Windows and make `gofmt`/`oxfmt` reject them even though the committed blobs are clean. Do not remove this; if files ever show as renormalized, run `git add --renormalize .`.
 - Low-level keyboard hooks miss events during secure desktop (lock screen, UAC) and hook timeouts; any key state tracked from hook events must reconcile against `GetAsyncKeyState` before suppressing input, or a missed Win keyup permanently swallows the hotkey letter.
 
 ## Validation

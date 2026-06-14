@@ -116,7 +116,7 @@ func TestDetectManifestTakesPrecedenceOverGit(t *testing.T) {
 		kind string
 	}{
 		{name: "go-repo", file: "go.mod", kind: "go"},
-		{name: "vscode-repo", file: filepath.Join(".vscode", "settings.json"), kind: "vscode-workspace"},
+		{name: "node-repo", file: "package.json", kind: "node"},
 	}
 	root := t.TempDir()
 	for _, tc := range cases {
@@ -276,7 +276,7 @@ func BenchmarkScanProjects(b *testing.B) {
 	root := b.TempDir()
 	for i := 0; i < 50; i++ {
 		project := filepath.Join(root, fmt.Sprintf("site-%02d", i), "nested")
-		if err := os.MkdirAll(filepath.Join(project, ".vscode"), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(project, ".git"), 0o755); err != nil {
 			b.Fatal(err)
 		}
 	}

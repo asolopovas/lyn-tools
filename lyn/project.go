@@ -3,7 +3,9 @@ package lyn
 import (
 	"cmp"
 	"maps"
+	"runtime"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -57,12 +59,23 @@ func newProjectSet(capacity int) projectSet {
 	return make(projectSet, capacity)
 }
 
+func projectKey(path string) string {
+	return projectKeyForOS(path, runtime.GOOS)
+}
+
+func projectKeyForOS(path string, goos string) string {
+	if goos != "windows" || isUnixPath(path) || isVSCodeRemoteURI(path) {
+		return path
+	}
+	return strings.ToLower(path)
+}
+
 func (s projectSet) add(project Project) {
-	s[project.Path] = project
+	s[projectKey(project.Path)] = project
 }
 
 func (s projectSet) addIfAbsent(project Project) {
-	if _, ok := s[project.Path]; ok {
+	if _, ok := s[projectKey(project.Path)]; ok {
 		return
 	}
 	s.add(project)
@@ -75,7 +88,7 @@ func (s projectSet) addAll(projects []Project) {
 }
 
 func (s projectSet) addMerged(project Project) {
-	if existing, ok := s[project.Path]; ok {
+	if existing, ok := s[projectKey(project.Path)]; ok {
 		if existing.UsageCount > project.UsageCount {
 			project.UsageCount = existing.UsageCount
 		}

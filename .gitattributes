@@ -1,0 +1,13 @@
+# Normalize line endings. Store as LF in git and check out as LF on every
+# platform so gofmt, oxfmt, and bash behave identically on Windows and Unix.
+# Without this, core.autocrlf=true checks Go/TS files out as CRLF on Windows
+# and the formatters reject them even though the committed blobs are clean.
+* text=auto eol=lf
+
+# Scripts that must always be LF regardless of content detection.
+*.sh text eol=lf
+*.ps1 text eol=lf
+
+# Binary assets — never normalize.
+*.png binary
+*.ico binary

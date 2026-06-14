@@ -182,7 +182,6 @@ var projectDirChecks = []projectDirCheck{
 	{kind: projectKindGo, files: []string{"go.mod"}},
 	{kind: projectKindNode, files: []string{"package.json"}},
 	{kind: projectKindRust, files: []string{"Cargo.toml"}},
-	{kind: projectKindVSCodeWorkspace, files: []string{".vscode"}},
 	{kind: projectKindGit, files: []string{".git"}},
 }
 
