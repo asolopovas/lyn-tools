@@ -9,6 +9,7 @@ import (
 
 const (
 	projectKindApp             = "app"
+	projectKindGit             = "git"
 	projectKindGo              = "go"
 	projectKindLaravel         = "laravel"
 	projectKindNode            = "node"

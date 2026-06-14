@@ -581,12 +581,15 @@ func (a *App) rescan() ([]Project, error, error) {
 func (a *App) rescanUnlocked() ([]Project, error, error) {
 	ctx, config, store := a.snapshot()
 	a.debugLog("scan.begin", "roots", len(config.Scanner.Roots), "maxDepth", config.Scanner.MaxDepth)
-	items, err := ScanProjects(ctx, config.Scanner)
+	items, skipped, err := ScanProjects(ctx, config.Scanner)
+	for _, root := range skipped {
+		a.debugLog("scan.root.skip", "root", root)
+	}
 	apps, recent, applicationError, recentProjectError := scanAppSources(ctx)
 	cacheItems := mergeProjects(items, apps)
 	if store != nil {
 		var storeError error
-		if err == nil && applicationError == nil {
+		if shouldReplaceCache(err, applicationError, skipped) {
 			storeError = store.ReplaceProjects(ctx, cacheItems)
 		} else {
 			storeError = store.UpsertProjects(ctx, cacheItems)
@@ -597,8 +600,12 @@ func (a *App) rescanUnlocked() ([]Project, error, error) {
 	}
 	sourceError := firstError(applicationError, recentProjectError)
 	items = a.indexProjects(cacheItems, recent)
-	a.debugLog("scan.end", "items", len(items), "error", err, "sourceError", sourceError)
+	a.debugLog("scan.end", "items", len(items), "skipped", len(skipped), "error", err, "sourceError", sourceError)
 	return items, sourceError, err
+}
+
+func shouldReplaceCache(scanError, applicationError error, skippedRoots []string) bool {
+	return scanError == nil && applicationError == nil && len(skippedRoots) == 0
 }
 
 func firstError(errorsToCheck ...error) error {

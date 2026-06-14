@@ -19,6 +19,8 @@ Lyn is a Wails desktop launcher for projects, apps, VS Code recents, and workspa
 - The backend owns launcher indexing, search, typo-tolerant matching, workspace shortcut filtering, and ranking.
 - Ranking order: match quality, usage count, last launch time, name, path.
 - Scanning is bounded by configured roots, depth, concurrency, timeout, ignored folders, and source-owned cache replacement.
+- Project detection markers, highest priority first: WordPress, Laravel, Go, Node, Rust, `.vscode` workspace, then any `.git` repository.
+- Unreachable configured roots (missing path, offline WSL/UNC share, permission error) are reported by `ScanProjects` and logged as `scan.root.skip`; a scan with skipped roots merges into the cache instead of replacing it, so a transient root never purges previously indexed projects.
 
 ## Frontend
 

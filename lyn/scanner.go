@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-func ScanProjects(ctx context.Context, cfg ScannerConfig) ([]Project, error) {
+func ScanProjects(ctx context.Context, cfg ScannerConfig) ([]Project, []string, error) {
 	if timeout := cfg.Timeout.Duration(); timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, timeout)
@@ -72,15 +72,23 @@ func ScanProjects(ctx context.Context, cfg ScannerConfig) ([]Project, error) {
 		}
 	}
 
+	var skipped []string
 	for _, root := range roots {
-		if info, err := os.Stat(root); err == nil && info.IsDir() {
+		info, err := os.Stat(root)
+		if err == nil && info.IsDir() {
 			if !addJob(root, 0) {
 				break
 			}
-		} else if err == nil && !info.IsDir() {
+			continue
+		}
+		if err == nil {
 			if project, ok := DetectProject(root); ok {
 				seen.add(project)
 			}
+			continue
+		}
+		if ctx.Err() == nil {
+			skipped = append(skipped, root)
 		}
 	}
 
@@ -105,9 +113,9 @@ func ScanProjects(ctx context.Context, cfg ScannerConfig) ([]Project, error) {
 
 	items := seen.sorted()
 	if ctx.Err() != nil {
-		return items, ctx.Err()
+		return items, skipped, ctx.Err()
 	}
-	return items, nil
+	return items, skipped, nil
 }
 
 func visitPath(ctx context.Context, cfg ScannerConfig, path string, depth int, addJob func(string, int) bool, seen projectSet, mu *sync.Mutex) {
@@ -175,6 +183,7 @@ var projectDirChecks = []projectDirCheck{
 	{kind: projectKindNode, files: []string{"package.json"}},
 	{kind: projectKindRust, files: []string{"Cargo.toml"}},
 	{kind: projectKindVSCodeWorkspace, files: []string{".vscode"}},
+	{kind: projectKindGit, files: []string{".git"}},
 }
 
 func DetectProjectDir(path string) (Project, bool) {

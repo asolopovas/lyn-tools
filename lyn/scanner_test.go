@@ -77,15 +77,121 @@ func TestScanProjectsFindsCodeWorkspaceFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := ScannerConfig{Roots: []string{root}, MaxDepth: 2, Concurrency: 2, Timeout: "20s"}
-	projects, err := ScanProjects(context.Background(), cfg)
+	projects, skipped, err := ScanProjects(context.Background(), cfg)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(skipped) != 0 {
+		t.Fatalf("unexpected skipped roots %#v", skipped)
 	}
 	if len(projects) != 1 {
 		t.Fatalf("unexpected project count %d", len(projects))
 	}
 	if projects[0].Kind != "vscode-workspace" {
 		t.Fatalf("unexpected kind %q", projects[0].Kind)
+	}
+}
+
+func TestDetectGitRepositoryWithoutManifest(t *testing.T) {
+	project := filepath.Join(t.TempDir(), "dotfiles")
+	if err := os.MkdirAll(filepath.Join(project, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(project, "README.md"), []byte("dotfiles"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	item, ok := DetectProject(project)
+	if !ok {
+		t.Fatal("git repository not detected")
+	}
+	if item.Kind != "git" || item.Name != "dotfiles" {
+		t.Fatalf("unexpected project %#v", item)
+	}
+}
+
+func TestDetectManifestTakesPrecedenceOverGit(t *testing.T) {
+	cases := []struct {
+		name string
+		file string
+		kind string
+	}{
+		{name: "go-repo", file: "go.mod", kind: "go"},
+		{name: "vscode-repo", file: filepath.Join(".vscode", "settings.json"), kind: "vscode-workspace"},
+	}
+	root := t.TempDir()
+	for _, tc := range cases {
+		t.Run(tc.kind, func(t *testing.T) {
+			project := filepath.Join(root, tc.name)
+			if err := os.MkdirAll(filepath.Join(project, ".git"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.MkdirAll(filepath.Dir(filepath.Join(project, tc.file)), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(project, tc.file), []byte{}, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			item, ok := DetectProject(project)
+			if !ok {
+				t.Fatal("project not detected")
+			}
+			if item.Kind != tc.kind {
+				t.Fatalf("unexpected kind %q", item.Kind)
+			}
+		})
+	}
+}
+
+func TestScanProjectsIndexesGitRepositoryRoot(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "winconf")
+	if err := os.MkdirAll(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := ScannerConfig{Roots: []string{root}, MaxDepth: 5, Concurrency: 2, Timeout: "20s"}
+	projects, skipped, err := ScanProjects(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(skipped) != 0 {
+		t.Fatalf("unexpected skipped roots %#v", skipped)
+	}
+	if len(projects) != 1 || projects[0].Kind != "git" || projects[0].Path != root {
+		t.Fatalf("unexpected projects %#v", projects)
+	}
+}
+
+func TestScanProjectsReportsUnreachableRootsAndKeepsResults(t *testing.T) {
+	good := t.TempDir()
+	if err := os.WriteFile(filepath.Join(good, "go.mod"), []byte("module example.test/app\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	missing := filepath.Join(t.TempDir(), "does-not-exist")
+	cfg := ScannerConfig{Roots: []string{good, missing}, MaxDepth: 2, Concurrency: 2, Timeout: "20s"}
+	projects, skipped, err := ScanProjects(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(projects) != 1 || projects[0].Kind != "go" {
+		t.Fatalf("expected the reachable root to still be scanned, got %#v", projects)
+	}
+	if len(skipped) != 1 || skipped[0] != filepath.Clean(missing) {
+		t.Fatalf("unexpected skipped roots %#v", skipped)
+	}
+}
+
+func TestScanProjectsReportsEveryUnreachableRoot(t *testing.T) {
+	first := filepath.Join(t.TempDir(), "absent-a")
+	second := filepath.Join(t.TempDir(), "absent-b")
+	cfg := ScannerConfig{Roots: []string{first, second}, MaxDepth: 2, Concurrency: 2, Timeout: "20s"}
+	projects, skipped, err := ScanProjects(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(projects) != 0 {
+		t.Fatalf("expected no projects, got %#v", projects)
+	}
+	if len(skipped) != 2 {
+		t.Fatalf("expected both roots reported as skipped, got %#v", skipped)
 	}
 }
 
@@ -144,7 +250,7 @@ func BenchmarkScanProjects(b *testing.B) {
 	}
 	cfg := ScannerConfig{Roots: []string{root}, MaxDepth: 4, Concurrency: 4, Timeout: "20s"}
 	for b.Loop() {
-		projects, err := ScanProjects(context.Background(), cfg)
+		projects, _, err := ScanProjects(context.Background(), cfg)
 		if err != nil {
 			b.Fatal(err)
 		}

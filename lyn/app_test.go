@@ -3,11 +3,34 @@ package lyn
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 )
+
+func TestShouldReplaceCache(t *testing.T) {
+	cases := []struct {
+		name        string
+		scanError   error
+		appError    error
+		skipped     []string
+		wantReplace bool
+	}{
+		{name: "clean scan replaces", wantReplace: true},
+		{name: "scan error preserves", scanError: errors.New("timeout")},
+		{name: "application error preserves", appError: errors.New("apps")},
+		{name: "skipped root preserves", skipped: []string{"/missing"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shouldReplaceCache(tc.scanError, tc.appError, tc.skipped); got != tc.wantReplace {
+				t.Fatalf("shouldReplaceCache = %v, want %v", got, tc.wantReplace)
+			}
+		})
+	}
+}
 
 func TestRestartArgsAddsStartHidden(t *testing.T) {
 	args := restartArgs([]string{"--debug"})
