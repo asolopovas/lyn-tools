@@ -78,6 +78,27 @@ func TestWindowsUninstallShortcutIsSkipped(t *testing.T) {
 	}
 }
 
+func TestWindowsStartupFolderIsSkipped(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Example App.lnk"), []byte{}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	startup := filepath.Join(dir, "Startup")
+	if err := os.MkdirAll(startup, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(startup, "Background Helper.lnk"), []byte{}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	apps, err := scanApplicationDirs(context.Background(), []string{dir}, "windows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(apps) != 1 || apps[0].Name != "Example App" {
+		t.Fatalf("expected only the non-startup app, got %#v", apps)
+	}
+}
+
 func TestApplicationNameAllowedSkipsJunk(t *testing.T) {
 	blocked := []string{"Uninstall WhatsApp", "WhatsApp Uninstaller", "Administrative Tools", ""}
 	for _, name := range blocked {

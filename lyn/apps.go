@@ -90,6 +90,9 @@ func addApplicationsFromDirs(ctx context.Context, seen projectSet, seenNames str
 				return ctx.Err()
 			}
 			if entry.IsDir() {
+				if goos == "windows" && strings.EqualFold(entry.Name(), "Startup") {
+					return filepath.SkipDir
+				}
 				return nil
 			}
 			if app, ok := detectApplication(path, goos); ok {

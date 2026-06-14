@@ -33,7 +33,7 @@ Lyn is a Wails desktop launcher for projects, apps, VS Code recents, and workspa
 
 ## Platform
 
-- Windows discovery indexes Start Menu/Desktop shortcuts and GUI executables from PATH; console tools are skipped.
+- Windows discovery indexes Start Menu/Desktop shortcuts and GUI executables from PATH; console tools and the `Startup` auto-run folder are skipped.
 - Windows launch/reveal/startup use native APIs when needed to avoid helper terminals.
 - WSL roots may be UNC paths or Linux paths converted by `wsl.exe wslpath -w`.
 - Linux discovery uses desktop entries and common icon theme paths.
