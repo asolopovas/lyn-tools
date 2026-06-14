@@ -452,27 +452,5 @@ func vscodeRecentPathAllowed(path string, goos string) bool {
 	if goos != "windows" || isUnixPath(path) {
 		return true
 	}
-	clean, err := filepath.Abs(path)
-	if err != nil {
-		clean = filepath.Clean(path)
-	}
-	for _, systemDir := range absoluteCleanPaths(windowsSystemDirs()) {
-		if isPathWithin(clean, systemDir) {
-			return false
-		}
-	}
-	return true
-}
-
-func isPathWithin(path string, root string) bool {
-	path = filepath.Clean(path)
-	root = filepath.Clean(root)
-	if strings.EqualFold(path, root) {
-		return true
-	}
-	rel, err := filepath.Rel(root, path)
-	if err != nil {
-		return false
-	}
-	return rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	return !withinWindowsSystemDir(path)
 }

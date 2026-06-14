@@ -90,7 +90,7 @@ func addApplicationsFromDirs(ctx context.Context, seen projectSet, seenNames str
 				return ctx.Err()
 			}
 			if entry.IsDir() {
-				if goos == "windows" && strings.EqualFold(entry.Name(), "Startup") {
+				if isWindowsStartupDir(entry.Name(), goos) {
 					return filepath.SkipDir
 				}
 				return nil
@@ -291,7 +291,7 @@ func addWindowsPathApplications(ctx context.Context, seen projectSet, seenNames 
 			return ctx.Err()
 		}
 		clean := strings.TrimSpace(dir)
-		if clean == "" || !windowsPathApplicationDirAllowed(clean) {
+		if clean == "" || withinWindowsSystemDir(clean) {
 			continue
 		}
 		full, err := filepath.Abs(clean)
@@ -321,24 +321,6 @@ func addWindowsPathApplications(ctx context.Context, seen projectSet, seenNames 
 		}
 	}
 	return nil
-}
-
-func windowsPathApplicationDirAllowed(dir string) bool {
-	clean := normalizedWindowsPath(dir)
-	for _, root := range windowsSystemDirs() {
-		root = normalizedWindowsPath(root)
-		if root != "" && (clean == root || strings.HasPrefix(clean, root+"/")) {
-			return false
-		}
-	}
-	return true
-}
-
-func normalizedWindowsPath(path string) string {
-	path = strings.TrimSpace(path)
-	path = strings.ReplaceAll(path, "\\", "/")
-	path = strings.TrimRight(path, "/")
-	return strings.ToLower(path)
 }
 
 func addApplication(seen projectSet, seenNames stringSet, app Project) bool {

@@ -239,20 +239,6 @@ func TestQueryWindowsStartAppsUsesManifestRootsWithoutPowerShell(t *testing.T) {
 	}
 }
 
-func TestWindowsPathApplicationDirAllowedSkipsSystemDirectories(t *testing.T) {
-	t.Setenv("SystemRoot", `C:\Windows`)
-	t.Setenv("WINDIR", `C:\Windows`)
-	if windowsPathApplicationDirAllowed(`C:\Windows\System32`) {
-		t.Fatal("expected System32 PATH applications to be skipped")
-	}
-	if windowsPathApplicationDirAllowed(`C:\Windows`) {
-		t.Fatal("expected Windows PATH applications to be skipped")
-	}
-	if !windowsPathApplicationDirAllowed(`C:\Program Files\App\bin`) {
-		t.Fatal("expected Program Files PATH applications to be allowed")
-	}
-}
-
 func TestScanWindowsPathApplicationsOnlyIncludesGuiExecutables(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("windows executable subsystem test")
