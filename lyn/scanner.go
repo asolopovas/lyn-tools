@@ -269,7 +269,15 @@ func shouldSkip(name string) bool {
 	switch name {
 	case ".git", "node_modules", "vendor", ".next", "dist", "build", "target", ".cache":
 		return true
-	default:
-		return false
 	}
+	return isPackagedDependency(name)
+}
+
+func isPackagedDependency(name string) bool {
+	for i := 0; i+1 < len(name); i++ {
+		if name[i] == '@' && name[i+1] >= '0' && name[i+1] <= '9' {
+			return true
+		}
+	}
+	return false
 }

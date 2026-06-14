@@ -195,6 +195,38 @@ func TestScanProjectsReportsEveryUnreachableRoot(t *testing.T) {
 	}
 }
 
+func TestScanProjectsSkipsPackagedDependencyDirectories(t *testing.T) {
+	root := t.TempDir()
+	app := filepath.Join(root, "my-app")
+	if err := os.MkdirAll(app, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(app, "package.json"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cache := filepath.Join(root, "runner-data", "_caches", "bun")
+	for _, dep := range []string{"accepts@1.3.8@@@1", "@babel+core@7.0.0"} {
+		pkg := filepath.Join(cache, dep)
+		if err := os.MkdirAll(pkg, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(pkg, "package.json"), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg := ScannerConfig{Roots: []string{root}, MaxDepth: 6, Concurrency: 4, Timeout: "20s"}
+	projects, skipped, err := ScanProjects(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(skipped) != 0 {
+		t.Fatalf("unexpected skipped roots %#v", skipped)
+	}
+	if len(projects) != 1 || projects[0].Path != app {
+		t.Fatalf("expected only the real project, got %#v", projects)
+	}
+}
+
 func TestExpandRoots(t *testing.T) {
 	items := expandRoots([]string{"~/src", "~/www"})
 	if len(items) != 2 {
