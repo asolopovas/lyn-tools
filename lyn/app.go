@@ -32,6 +32,7 @@ type App struct {
 	shown                 bool
 	showSequence          uint64
 	autoHideSuppressed    bool
+	quitting              bool
 	debug                 *DebugLogger
 	mode                  WindowMode
 }
@@ -430,17 +431,41 @@ func (a *App) Hide() {
 	if a.ctx == nil {
 		return
 	}
-	runtime.WindowHide(a.ctx)
+	windowHide(a.ctx)
 	a.shown = false
 	a.showSequence++
 }
 
-var quitRuntime = runtime.Quit
+var (
+	quitRuntime = runtime.Quit
+	windowHide  = runtime.WindowHide
+)
+
+func (a *App) BeforeClose(context.Context) bool {
+	a.stateMu.Lock()
+	quitting := a.quitting
+	mode := a.mode
+	a.stateMu.Unlock()
+	if quitting || mode == SettingsWindowMode {
+		a.debugLog("window.close.allow")
+		return false
+	}
+	a.debugLog("window.close.minimize")
+	a.Hide()
+	return true
+}
+
+func (a *App) requestQuit(ctx context.Context) {
+	a.stateMu.Lock()
+	a.quitting = true
+	a.stateMu.Unlock()
+	quitRuntime(ctx)
+}
 
 func (a *App) Quit() {
 	ctx, _, _ := a.snapshot()
 	if ctx != nil {
-		quitRuntime(ctx)
+		a.requestQuit(ctx)
 	}
 }
 
@@ -456,7 +481,7 @@ func (a *App) Restart() {
 		return
 	}
 	a.debugLog("restart.started")
-	quitRuntime(ctx)
+	a.requestQuit(ctx)
 }
 
 func (a *App) Toggle() {

@@ -55,9 +55,10 @@ func newWailsOptions(app *lyn.App) *options.App {
 			DisableWindowIcon:    true,
 			WindowClassName:      lyn.NativeWindowClassName,
 		},
-		OnStartup:  app.Startup,
-		OnShutdown: app.Shutdown,
-		Bind:       []any{app},
+		OnStartup:     app.Startup,
+		OnShutdown:    app.Shutdown,
+		OnBeforeClose: app.BeforeClose,
+		Bind:          []any{app},
 	}
 	if app.WindowMode() == string(lyn.SettingsWindowMode) {
 		appOptions.Title = "Lyn Settings"

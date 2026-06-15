@@ -70,6 +70,57 @@ func TestRestartStartsProcessThenQuits(t *testing.T) {
 	}
 }
 
+func TestBeforeCloseMinimizesToTray(t *testing.T) {
+	originalHide := windowHide
+	defer func() { windowHide = originalHide }()
+	hidden := false
+	windowHide = func(context.Context) { hidden = true }
+	app := NewApp()
+	app.ctx = context.Background()
+	if prevent := app.BeforeClose(context.Background()); !prevent {
+		t.Fatal("expected BeforeClose to prevent the close")
+	}
+	if !hidden {
+		t.Fatal("expected window to be hidden")
+	}
+	if app.shown {
+		t.Fatal("expected shown to be false after minimize")
+	}
+}
+
+func TestBeforeCloseAllowsQuit(t *testing.T) {
+	originalHide := windowHide
+	originalQuit := quitRuntime
+	defer func() {
+		windowHide = originalHide
+		quitRuntime = originalQuit
+	}()
+	hidden := false
+	windowHide = func(context.Context) { hidden = true }
+	quitRuntime = func(context.Context) {}
+	app := NewApp()
+	app.ctx = context.Background()
+	app.Quit()
+	if prevent := app.BeforeClose(context.Background()); prevent {
+		t.Fatal("expected BeforeClose to allow the close after Quit")
+	}
+	if hidden {
+		t.Fatal("expected no minimize when quitting")
+	}
+}
+
+func TestBeforeCloseAllowsSettingsWindow(t *testing.T) {
+	originalHide := windowHide
+	defer func() { windowHide = originalHide }()
+	windowHide = func(context.Context) { t.Fatal("settings window must not minimize to tray") }
+	app := NewApp()
+	app.SetWindowMode(SettingsWindowMode)
+	app.ctx = context.Background()
+	if prevent := app.BeforeClose(context.Background()); prevent {
+		t.Fatal("expected settings window close to be allowed")
+	}
+}
+
 func TestConfigReloadsChangesSavedBySettingsProcess(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("AppData", configDir)

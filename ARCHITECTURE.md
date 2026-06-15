@@ -14,6 +14,7 @@ Lyn is a Wails desktop launcher for projects, apps, VS Code recents, and workspa
 ## Backend
 
 - `lyn/app.go` owns Wails lifecycle, state, cache refresh, watcher restart, tray, hotkey, window, and frontend bindings.
+- Closing the launcher window minimizes to tray instead of exiting; `OnBeforeClose` (`App.BeforeClose`) hides the window and cancels the close unless a real quit set the `quitting` flag. The tray Quit, restart, and elevation switch route through `App.requestQuit`, which sets the flag before calling `runtime.Quit`, so the only way to exit is the tray menu (or a restart/elevation hand-off). The settings window closes normally.
 - Shared domains live in `config`, `cache`, `project`, `scanner`, `apps`, `vscode`, and `watcher` files.
 - SQLite stores cached items and launch usage; all SQLite connections stay in Go, including VS Code `state.vscdb` recent-project reads.
 - The backend owns launcher indexing, search, typo-tolerant matching, workspace shortcut filtering, and ranking.

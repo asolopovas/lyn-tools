@@ -51,7 +51,7 @@ func (a *App) SwitchElevation(mode string) (ElevationStatus, error) {
 		return status, err
 	}
 	a.debugLog("elevation.switch.started", "mode", mode)
-	quitRuntime(ctx)
+	a.requestQuit(ctx)
 	return ElevationStatus{Mode: mode, CanSwitch: true}, nil
 }
 
