@@ -26,6 +26,21 @@ func TestCurrentLaunchSelectionRejectsSystemCommandSelection(t *testing.T) {
 	}
 }
 
+func TestHasCachedLaunchSelectionAvoidsStoreInHookPath(t *testing.T) {
+	app := NewApp()
+	if app.hasCachedLaunchSelection() {
+		t.Fatal("expected no cached selection by default")
+	}
+	app.SetLaunchSelection(launch.Request{Path: `C:\src\selected`, Action: "code"})
+	if !app.hasCachedLaunchSelection() {
+		t.Fatal("expected cached selection to be reported")
+	}
+	app.SetLaunchSelection(launch.Request{Path: "lyn:system:logout", Action: "open"})
+	if app.hasCachedLaunchSelection() {
+		t.Fatal("expected disabled system selection to be rejected")
+	}
+}
+
 func TestNativeShortcutAction(t *testing.T) {
 	originalControl := isNativeControlDown
 	originalShift := isNativeShiftDown

@@ -3,6 +3,7 @@ package lyn
 import (
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -106,6 +107,45 @@ func TestStartWatcherEmitsDebouncedChange(t *testing.T) {
 	case <-changes:
 	case <-time.After(4 * time.Second):
 		t.Fatal("expected watcher change")
+	}
+}
+
+func TestStartWatcherThrottlesContinuousChurn(t *testing.T) {
+	original := watcherMinScanInterval
+	watcherMinScanInterval = 500 * time.Millisecond
+	defer func() { watcherMinScanInterval = original }()
+
+	root := t.TempDir()
+	cfg := DefaultConfig().Scanner
+	cfg.Roots = []string{root}
+	cfg.MaxDepth = 1
+	cfg.Watch = true
+	var scans atomic.Int32
+	w, err := StartWatcher(t.Context(), cfg, func() { scans.Add(1) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer w.Close()
+
+	deadline := time.After(1600 * time.Millisecond)
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	i := 0
+loop:
+	for {
+		select {
+		case <-deadline:
+			break loop
+		case <-ticker.C:
+			i++
+			_ = os.WriteFile(filepath.Join(root, "churn.txt"), []byte{byte(i)}, 0o644)
+		}
+	}
+	if got := scans.Load(); got < 1 {
+		t.Fatal("expected at least one scan")
+	}
+	if got := scans.Load(); got > 5 {
+		t.Fatalf("expected throttle to cap scans over ~1.6s of churn, got %d", got)
 	}
 }
 

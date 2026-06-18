@@ -17,30 +17,42 @@ const (
 func (a *App) registerLaunchKeyInterceptor() {
 	cleanup := hotkey.SetKeyInterceptor(func(vkCode uint32) bool {
 		action, handled := nativeShortcutAction(vkCode)
-		if !handled {
+		if !handled || !isWindowForeground() {
 			return false
 		}
-		if !isWindowForeground() {
-			return false
-		}
-		request := a.currentLaunchSelection()
-		if strings.TrimSpace(request.Path) == "" || isDisabledSystemPath(request.Path) {
+		if !a.hasCachedLaunchSelection() {
 			a.debugLog("launch.native.missing")
 			return false
 		}
-		if action != "" {
-			request.Action = action
-		}
-		a.debugLog("launch.native.shortcut", "action", request.Action, "path", request.Path)
-		if launch.NormalizedAction(request.Action) != "reveal" {
-			a.Hide()
-		}
-		go a.Launch(request)
+		go a.runNativeShortcut(action)
 		return true
 	})
 	a.stateMu.Lock()
 	a.keyInterceptorCleanup = cleanup
 	a.stateMu.Unlock()
+}
+
+func (a *App) hasCachedLaunchSelection() bool {
+	a.launchSelectionMu.Lock()
+	path := a.launchSelection.Path
+	a.launchSelectionMu.Unlock()
+	return strings.TrimSpace(path) != "" && !isDisabledSystemPath(path)
+}
+
+func (a *App) runNativeShortcut(action string) {
+	request := a.currentLaunchSelection()
+	if strings.TrimSpace(request.Path) == "" || isDisabledSystemPath(request.Path) {
+		a.debugLog("launch.native.missing")
+		return
+	}
+	if action != "" {
+		request.Action = action
+	}
+	a.debugLog("launch.native.shortcut", "action", request.Action, "path", request.Path)
+	if launch.NormalizedAction(request.Action) != "reveal" {
+		a.Hide()
+	}
+	a.Launch(request)
 }
 
 func nativeShortcutAction(vkCode uint32) (string, bool) {

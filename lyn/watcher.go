@@ -16,6 +16,8 @@ type Watcher struct {
 	done   chan struct{}
 }
 
+var watcherMinScanInterval = 5 * time.Second
+
 func StartWatcher(parent context.Context, cfg ScannerConfig, onChange func()) (*Watcher, error) {
 	if parent == nil || !cfg.Watch {
 		return nil, nil
@@ -48,11 +50,19 @@ func (w *Watcher) Close() error {
 func (w *Watcher) run(ctx context.Context, cfg ScannerConfig, onChange func()) {
 	defer close(w.done)
 	const debounceDelay = 200 * time.Millisecond
+	minScanInterval := watcherMinScanInterval
 	var timer *time.Timer
 	var timerC <-chan time.Time
+	var lastScan time.Time
 	schedule := func() {
+		delay := debounceDelay
+		if !lastScan.IsZero() {
+			if remaining := minScanInterval - time.Since(lastScan); remaining > delay {
+				delay = remaining
+			}
+		}
 		if timer == nil {
-			timer = time.NewTimer(debounceDelay)
+			timer = time.NewTimer(delay)
 			timerC = timer.C
 			return
 		}
@@ -62,7 +72,7 @@ func (w *Watcher) run(ctx context.Context, cfg ScannerConfig, onChange func()) {
 			default:
 			}
 		}
-		timer.Reset(debounceDelay)
+		timer.Reset(delay)
 		timerC = timer.C
 	}
 	defer func() {
@@ -94,6 +104,7 @@ func (w *Watcher) run(ctx context.Context, cfg ScannerConfig, onChange func()) {
 			if onChange != nil {
 				onChange()
 			}
+			lastScan = time.Now()
 		}
 	}
 }
