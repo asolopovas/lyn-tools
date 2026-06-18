@@ -45,6 +45,9 @@ func compareProjects(a, b Project) int {
 }
 
 func compareRankedProjects(a, b Project) int {
+	if byKind := workspaceRank(a) - workspaceRank(b); byKind != 0 {
+		return byKind
+	}
 	if byUsage := cmp.Compare(b.UsageCount, a.UsageCount); byUsage != 0 {
 		return byUsage
 	}
@@ -52,6 +55,13 @@ func compareRankedProjects(a, b Project) int {
 		return byLaunch
 	}
 	return compareProjects(a, b)
+}
+
+func workspaceRank(p Project) int {
+	if p.Kind == projectKindVSCodeWorkspace {
+		return 0
+	}
+	return 1
 }
 
 type projectSet map[string]Project

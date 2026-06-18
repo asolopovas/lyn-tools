@@ -373,7 +373,11 @@ var launchAsync = func(fn func()) { go fn() }
 
 func (a *App) Launch(request launch.Request) launch.Result {
 	a.debugLog("launch.begin", "action", launch.NormalizedAction(request.Action), "path", request.Path)
-	result := a.dispatchLaunch(request)
+	target := a.resolveLaunchTarget(request)
+	if target.Path != request.Path {
+		a.debugLog("launch.retarget", "from", request.Path, "to", target.Path)
+	}
+	result := a.dispatchLaunch(target)
 	a.debugLog("launch.end", "command", result.Command, "args", strings.Join(result.Args, " "), "error", result.Error)
 	if result.Error == "" && request.Action != "reveal" {
 		launchAsync(func() { a.recordLaunch(request.Path) })

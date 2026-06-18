@@ -18,6 +18,17 @@ func TestSearchProjectsRanksEmptyQueryByUsage(t *testing.T) {
 	}
 }
 
+func TestSearchProjectsRanksWorkspacesAboveFolders(t *testing.T) {
+	projects := []Project{
+		{Name: "app", Path: "/app", Kind: projectKindGo, UsageCount: 9},
+		{Name: "app", Path: "/app.code-workspace", Kind: projectKindVSCodeWorkspace},
+	}
+	matches := searchProjects(projects, "", "{")
+	if len(matches) != 2 || matches[0].Kind != projectKindVSCodeWorkspace {
+		t.Fatalf("expected workspace ranked above folder, got %#v", matches)
+	}
+}
+
 func TestSearchProjectsMatchesTypos(t *testing.T) {
 	projects := []Project{
 		{Name: "Calendar", Path: "/calendar", Kind: projectKindApp},
