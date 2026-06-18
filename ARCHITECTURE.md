@@ -9,6 +9,7 @@ Lyn is a Wails desktop launcher for projects, apps, VS Code recents, and workspa
 - `lyn/hotkey/`, `lyn/launch/`, `lyn/startup/`, and `lyn/tray/` are focused backend domains imported by `lyn/app.go`.
 - `frontend/` is the Vue/Vite workspace; `frontend/dist` is embedded for production.
 - Add folders only for cohesive multi-file packages, build tags, generated output, assets, or tool-required paths.
+- Split files only at real package, build-tag, generated, asset, test, or cohesive-domain boundaries; keep small Go application code in root files.
 - Avoid `cmd`, `internal`, and `pkg` until multiple binaries, reusable internals, or public APIs justify them.
 
 ## Backend
