@@ -228,7 +228,7 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
               <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.delete" /></svg>
             </button>
           </div>
-          <p v-if="!(cfg.scanner.wslRoots && cfg.scanner.wslRoots.length)" class="root-empty-hint">
+          <p v-if="!cfg.scanner.wslRoots?.length" class="root-empty-hint">
             Pick a folder from \\wsl.localhost; it is stored and shown as a Unix path.
           </p>
         </div>

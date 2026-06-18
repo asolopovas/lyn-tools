@@ -28,23 +28,3 @@ export const themes: Record<string, Theme> = {
 export function themeByKey(key: string): Theme {
   return themes[key] ?? themes["power-run"]!;
 }
-
-const themeFields = [
-  "name",
-  "background",
-  "panel",
-  "panelAlt",
-  "border",
-  "text",
-  "muted",
-  "accent",
-  "selected",
-] as const;
-
-export function isTheme(value: unknown): value is Theme {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  const item = value as Record<string, unknown>;
-  return themeFields.every((key) => typeof item[key] === "string" && item[key].trim() !== "");
-}
