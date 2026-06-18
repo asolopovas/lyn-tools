@@ -102,7 +102,8 @@ func (a *App) startup(ctx context.Context) {
 	a.startWatcher()
 	configureWindowAppearance()
 	installCloseToTray(a.isQuitting, a.minimizeToTray)
-	tray.Start(a)
+	a.debugLog("tray.start.request")
+	tray.Start(a, a.debugLog)
 	a.startFastRefresh()
 	if a.config.Startup.Enabled && a.config.Startup.StartHidden {
 		runtime.WindowHide(a.ctx)
@@ -486,10 +487,11 @@ func (a *App) Show() {
 }
 
 func (a *App) ShowSettings() {
-	a.Show()
-	ctx, _, _ := a.snapshot()
-	if ctx != nil {
-		runtime.EventsEmit(ctx, "open-settings")
+	a.debugLog("settings.open.request")
+	if err := a.OpenSettingsWindow(); err != nil {
+		ctx, _, _ := a.snapshot()
+		a.debugLog("settings.open.error", "error", err)
+		logRuntimeError(ctx, err)
 	}
 }
 

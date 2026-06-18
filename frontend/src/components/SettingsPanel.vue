@@ -228,7 +228,7 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
           </p>
         </div>
         <button class="settings-add-button" type="button" @click="$emit('browse-wsl-root')">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.add" /></svg>Add WSL folder
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.add" /></svg>Add folder
         </button>
       </section>
 

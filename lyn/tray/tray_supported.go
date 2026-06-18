@@ -20,14 +20,19 @@ func init() {
 	stopTray = systray.Quit
 }
 
-func startSupportedTray(controller Controller) {
+func startSupportedTray(controller Controller, logf LogFunc) {
 	trayOnce.Do(func() {
+		logf("tray.start")
 		go systray.Run(func() {
+			logf("tray.ready")
 			systray.SetIcon(trayIcon())
 			systray.SetTitle("Lyn")
 			systray.SetTooltip("Lyn project launcher")
 			configureMenu(controller)
-		}, func() {})
+			logf("tray.menu.configured")
+		}, func() {
+			logf("tray.exit")
+		})
 	})
 }
 

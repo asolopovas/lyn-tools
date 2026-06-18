@@ -328,9 +328,6 @@ onMounted(() => {
     launchSelectionPoll = window.setInterval(updateNativeLaunchSelection, 100);
     updateNativeLaunchSelection();
     eventDisposers = [
-      EventsOn("open-settings", () => {
-        void openSettings();
-      }),
       EventsOn("launcher-shown", onLauncherShown),
       EventsOn("projects-updated", () => {
         void refreshFromWatcher();

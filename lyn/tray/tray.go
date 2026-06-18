@@ -7,14 +7,19 @@ type Controller interface {
 	Quit()
 }
 
+type LogFunc func(event string, fields ...any)
+
 var (
-	startTray func(Controller)
+	startTray func(Controller, LogFunc)
 	stopTray  func()
 )
 
-func Start(controller Controller) {
+func Start(controller Controller, logf LogFunc) {
+	if logf == nil {
+		logf = func(string, ...any) {}
+	}
 	if startTray != nil {
-		startTray(controller)
+		startTray(controller, logf)
 	}
 }
 
