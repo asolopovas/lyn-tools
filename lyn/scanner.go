@@ -19,8 +19,9 @@ func ScanProjects(ctx context.Context, cfg ScannerConfig) ([]Project, []string, 
 	roots := append(expandRoots(cfg.Roots), wslScanRoots(cfg.WSLRoots)...)
 	limit := max(cfg.Concurrency, 1)
 	type job struct {
-		path  string
-		depth int
+		path          string
+		depth         int
+		insideProject bool
 	}
 	seen := newProjectSet(0)
 	var mu sync.Mutex
@@ -33,7 +34,7 @@ func ScanProjects(ctx context.Context, cfg ScannerConfig) ([]Project, []string, 
 	}{items: make([]job, 0, limit*2)}
 	queue.cond = sync.NewCond(&queue.mu)
 
-	addJob := func(path string, depth int) bool {
+	addJob := func(path string, depth int, insideProject bool) bool {
 		if ctx.Err() != nil {
 			return false
 		}
@@ -42,7 +43,7 @@ func ScanProjects(ctx context.Context, cfg ScannerConfig) ([]Project, []string, 
 		if ctx.Err() != nil {
 			return false
 		}
-		queue.items = append(queue.items, job{path: path, depth: depth})
+		queue.items = append(queue.items, job{path: path, depth: depth, insideProject: insideProject})
 		queue.pending++
 		queue.cond.Signal()
 		return true
@@ -76,7 +77,7 @@ func ScanProjects(ctx context.Context, cfg ScannerConfig) ([]Project, []string, 
 	for _, root := range roots {
 		info, err := os.Stat(root)
 		if err == nil && info.IsDir() {
-			if !addJob(root, 0) {
+			if !addJob(root, 0, false) {
 				break
 			}
 			continue
@@ -100,7 +101,7 @@ func ScanProjects(ctx context.Context, cfg ScannerConfig) ([]Project, []string, 
 			if !ok {
 				return
 			}
-			visitPath(ctx, cfg, item.path, item.depth, addJob, seen, &mu)
+			visitPath(ctx, cfg, item.path, item.depth, item.insideProject, addJob, seen, &mu)
 			doneJob()
 		}
 	}
@@ -118,7 +119,7 @@ func ScanProjects(ctx context.Context, cfg ScannerConfig) ([]Project, []string, 
 	return items, skipped, nil
 }
 
-func visitPath(ctx context.Context, cfg ScannerConfig, path string, depth int, addJob func(string, int) bool, seen projectSet, mu *sync.Mutex) {
+func visitPath(ctx context.Context, cfg ScannerConfig, path string, depth int, insideProject bool, addJob func(string, int, bool) bool, seen projectSet, mu *sync.Mutex) {
 	if ctx.Err() != nil {
 		return
 	}
@@ -126,11 +127,13 @@ func visitPath(ctx context.Context, cfg ScannerConfig, path string, depth int, a
 	if err != nil {
 		return
 	}
-	if project, ok := detectProjectDirEntries(path, entries); ok {
-		mu.Lock()
-		seen.add(wslScannedProject(project))
-		mu.Unlock()
-		return
+	if !insideProject {
+		if project, ok := detectProjectDirEntries(path, entries); ok {
+			mu.Lock()
+			seen.add(wslScannedProject(project))
+			mu.Unlock()
+			insideProject = true
+		}
 	}
 	if depth >= cfg.MaxDepth {
 		return
@@ -151,7 +154,7 @@ func visitPath(ctx context.Context, cfg ScannerConfig, path string, depth int, a
 		if shouldSkip(entry.Name()) {
 			continue
 		}
-		if !addJob(child, depth+1) {
+		if !addJob(child, depth+1, insideProject) {
 			return
 		}
 	}

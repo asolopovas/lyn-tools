@@ -26,6 +26,56 @@ func TestDetectProject(t *testing.T) {
 	}
 }
 
+func TestScanFindsWorkspacesInsideProjects(t *testing.T) {
+	root := t.TempDir()
+	project := filepath.Join(root, "app")
+	nested := filepath.Join(project, "modules", "editor")
+	ignored := filepath.Join(project, "node_modules", "pkg")
+	for _, dir := range []string{nested, ignored} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rootWorkspace := filepath.Join(project, "app.code-workspace")
+	nestedWorkspace := filepath.Join(nested, "editor.code-workspace")
+	ignoredWorkspace := filepath.Join(ignored, "ignored.code-workspace")
+	files := map[string]string{
+		filepath.Join(project, "go.mod"): "module example\n",
+		rootWorkspace:                    "{}",
+		nestedWorkspace:                  "{}",
+		ignoredWorkspace:                 "{}",
+	}
+	for path, content := range files {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	items, _, err := ScanProjects(context.Background(), ScannerConfig{
+		Roots: []string{root}, MaxDepth: 5, Concurrency: 2, Timeout: defaultScannerTimeout,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var gotProject, gotRootWorkspace, gotNestedWorkspace bool
+	for _, p := range items {
+		switch p.Path {
+		case project:
+			gotProject = p.Kind == "go"
+		case rootWorkspace:
+			gotRootWorkspace = true
+		case nestedWorkspace:
+			gotNestedWorkspace = true
+		case ignoredWorkspace:
+			t.Errorf("workspace under node_modules must be skipped: %s", p.Path)
+		}
+	}
+	if !gotProject || !gotRootWorkspace || !gotNestedWorkspace {
+		t.Fatalf("project=%v rootWorkspace=%v nestedWorkspace=%v (items=%d)", gotProject, gotRootWorkspace, gotNestedWorkspace, len(items))
+	}
+}
+
 func TestDetectCommonProjectManifests(t *testing.T) {
 	cases := []struct {
 		name string

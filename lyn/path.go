@@ -9,6 +9,7 @@ import (
 var skippedScanDirs = map[string]struct{}{
 	".git": {}, "node_modules": {}, "vendor": {}, ".next": {},
 	"dist": {}, "build": {}, "target": {}, ".cache": {},
+	"uploads": {}, "wp-includes": {}, ".svn": {},
 }
 
 func shouldSkip(name string) bool {
