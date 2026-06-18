@@ -32,11 +32,18 @@ var (
 	isNativeControlDown                   func() bool
 	isNativeShiftDown                     func() bool
 	isNativeAltDown                       func() bool
+	installNativeCloseToTray              func(isQuitting func() bool, hide func())
 )
 
 func configureWindowAppearance() {
 	if configureNativeWindowAppearance != nil {
 		configureNativeWindowAppearance()
+	}
+}
+
+func installCloseToTray(isQuitting func() bool, hide func()) {
+	if installNativeCloseToTray != nil {
+		installNativeCloseToTray(isQuitting, hide)
 	}
 }
 

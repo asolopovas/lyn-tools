@@ -14,7 +14,9 @@ Lyn is a Wails desktop launcher for projects, apps, VS Code recents, and workspa
 ## Backend
 
 - `lyn/app.go` owns Wails lifecycle, state, cache refresh, watcher restart, tray, hotkey, window, and frontend bindings.
-- Closing the launcher window minimizes to tray instead of exiting; `OnBeforeClose` (`App.BeforeClose`) hides the window and cancels the close unless a real quit set the `quitting` flag. The tray Quit, restart, and elevation switch route through `App.requestQuit`, which sets the flag before calling `runtime.Quit`, so the only way to exit is the tray menu (or a restart/elevation hand-off). The settings window closes normally.
+- Closing the launcher window minimizes to tray instead of exiting; the only way to exit is the tray menu (or a restart/elevation hand-off). The tray Quit, restart, and elevation switch route through `App.requestQuit`, which sets the `quitting` flag before calling `runtime.Quit`. Genuine quits clear the gate; everything else hides.
+- Close interception is two-layered. `OnBeforeClose` (`App.BeforeClose`) handles Wails `WM_CLOSE`-style closes (and is the Linux path). On Windows that is not enough: AutoHotkey/system "close active window" actions send `WM_SYSCOMMAND`/`SC_CLOSE`, which Wails does not route through `OnBeforeClose`. `window_windows.go` therefore subclasses the launcher window proc (`installWindowsCloseToTray`) and intercepts both `WM_CLOSE` and `WM_SYSCOMMAND`/`SC_CLOSE`, hiding to tray via `App.minimizeToTray` unless the `quitting` flag is set. The settings window is not subclassed and closes normally.
+- GUI-thread deadlock avoidance for the hide paths. `runtime.WindowHide` is a `ShowWindow` that, when invoked from a background goroutine, becomes a cross-thread call that blocks until the launcher's GUI thread pumps messages. Two rules keep this from deadlocking: (1) every hide path (`Hide`, `Toggle`, `hideAfterFocusLoss`) mutates `shown`/`showSequence` under `stateMu` but releases the lock *before* calling `windowHide`, so the lock is never held across a blocking window call; and (2) the close interceptor dispatches `minimizeToTray` on a goroutine and returns immediately, so the GUI message loop never blocks inside the window proc. Without both, a close (GUI thread waiting on `stateMu`) racing the auto-hide pass (background goroutine holding `stateMu` inside a cross-thread `ShowWindow`) freezes the window as "Not Responding". `windowHide` is a package var so the discipline is regression-tested.
 - Shared domains live in `config`, `cache`, `project`, `scanner`, `apps`, `vscode`, and `watcher` files.
 - SQLite stores cached items and launch usage; all SQLite connections stay in Go, including VS Code `state.vscdb` recent-project reads.
 - The backend owns launcher indexing, search, typo-tolerant matching, workspace shortcut filtering, and ranking.
@@ -38,7 +40,7 @@ Lyn is a Wails desktop launcher for projects, apps, VS Code recents, and workspa
 
 - Windows discovery indexes Start Menu/Desktop shortcuts and GUI executables from PATH; console tools and the `Startup` auto-run folder are skipped.
 - Windows launch/reveal/startup use native APIs when needed to avoid helper terminals.
-- WSL roots may be UNC paths or Linux paths converted by `wsl.exe wslpath -w`.
+- WSL roots may be UNC paths or Linux paths converted by `wsl.exe wslpath -w`. `wsl.exe` is a console program, so the GUI build must spawn it through `hideConsoleWindow` (`process_windows.go`, `CREATE_NO_WINDOW`); otherwise a console window flashes on every startup/watcher scan. Any new child console process started from the app must go through the same helper.
 - Linux discovery uses desktop entries and common icon theme paths.
 - Tray support is split by build tags; unsupported platforms use a no-op fallback.
 

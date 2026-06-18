@@ -98,6 +98,7 @@ func (a *App) startup(ctx context.Context) {
 	a.registerLaunchKeyInterceptor()
 	a.startWatcher()
 	configureWindowAppearance()
+	installCloseToTray(a.isQuitting, a.minimizeToTray)
 	tray.Start(a)
 	a.startFastRefresh()
 	if a.config.Startup.Enabled && a.config.Startup.StartHidden {
@@ -427,13 +428,15 @@ func (a *App) ShowSettings() {
 func (a *App) Hide() {
 	a.debugLog("window.hide.request")
 	a.stateMu.Lock()
-	defer a.stateMu.Unlock()
 	if a.ctx == nil {
+		a.stateMu.Unlock()
 		return
 	}
-	windowHide(a.ctx)
+	ctx := a.ctx
 	a.shown = false
 	a.showSequence++
+	a.stateMu.Unlock()
+	windowHide(ctx)
 }
 
 var (
@@ -442,17 +445,23 @@ var (
 )
 
 func (a *App) BeforeClose(context.Context) bool {
-	a.stateMu.Lock()
-	quitting := a.quitting
-	mode := a.mode
-	a.stateMu.Unlock()
-	if quitting || mode == SettingsWindowMode {
+	if a.isQuitting() || a.windowMode() == SettingsWindowMode {
 		a.debugLog("window.close.allow")
 		return false
 	}
+	a.minimizeToTray()
+	return true
+}
+
+func (a *App) minimizeToTray() {
 	a.debugLog("window.close.minimize")
 	a.Hide()
-	return true
+}
+
+func (a *App) isQuitting() bool {
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
+	return a.quitting
 }
 
 func (a *App) requestQuit(ctx context.Context) {
@@ -492,10 +501,11 @@ func (a *App) Toggle() {
 		return
 	}
 	if a.shouldHideOnToggleLocked() {
-		runtime.WindowHide(a.ctx)
+		ctx := a.ctx
 		a.shown = false
 		a.showSequence++
 		a.stateMu.Unlock()
+		windowHide(ctx)
 		a.debugLog("window.toggle.hidden")
 		return
 	}
@@ -759,10 +769,10 @@ func (a *App) hideAfterFocusLoss(ctx context.Context, sequence uint64) bool {
 		a.stateMu.Unlock()
 		return false
 	}
-	runtime.WindowHide(ctx)
 	a.shown = false
 	a.showSequence++
 	a.stateMu.Unlock()
+	windowHide(ctx)
 	a.debugLog("window.hide.focus-loss", "sequence", sequence)
 	return true
 }

@@ -256,7 +256,9 @@ func isUnixPath(path string) bool {
 }
 
 func wslPathToWindows(path string) (string, bool) {
-	output, err := exec.Command("wsl.exe", "wslpath", "-w", path).Output()
+	cmd := exec.Command("wsl.exe", "wslpath", "-w", path)
+	hideConsoleWindow(cmd)
+	output, err := cmd.Output()
 	if err != nil {
 		return "", false
 	}

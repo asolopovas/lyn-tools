@@ -121,6 +121,50 @@ func TestBeforeCloseAllowsSettingsWindow(t *testing.T) {
 	}
 }
 
+func TestHidePathsReleaseStateMuBeforeWindowHide(t *testing.T) {
+	originalHide := windowHide
+	defer func() { windowHide = originalHide }()
+
+	check := func(t *testing.T, app *App, action func()) {
+		t.Helper()
+		called := false
+		held := false
+		windowHide = func(context.Context) {
+			called = true
+			if app.stateMu.TryLock() {
+				app.stateMu.Unlock()
+				return
+			}
+			held = true
+		}
+		action()
+		if !called {
+			t.Fatal("expected windowHide to be called")
+		}
+		if held {
+			t.Fatal("stateMu held during windowHide; GUI-thread close can deadlock")
+		}
+	}
+
+	t.Run("Hide", func(t *testing.T) {
+		app := NewApp()
+		app.ctx = context.Background()
+		check(t, app, app.Hide)
+	})
+	t.Run("Toggle", func(t *testing.T) {
+		app := NewApp()
+		app.ctx = context.Background()
+		app.shown = true
+		check(t, app, app.Toggle)
+	})
+	t.Run("hideAfterFocusLoss", func(t *testing.T) {
+		app := NewApp()
+		app.ctx = context.Background()
+		app.shown = true
+		check(t, app, func() { app.hideAfterFocusLoss(app.ctx, app.showSequence) })
+	})
+}
+
 func TestConfigReloadsChangesSavedBySettingsProcess(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("AppData", configDir)

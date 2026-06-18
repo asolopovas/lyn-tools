@@ -20,9 +20,15 @@ const (
 	vkMenu         = 0x12
 	wsExToolwindow = 0x00000080
 	wsExAppwindow  = 0x00040000
+	wmClose        = 0x0010
+	wmSyscommand   = 0x0112
+	scClose        = 0xF060
+	scMask         = 0xFFF0
 )
 
 var gwlExstyle = ^uintptr(19)
+
+var gwlpWndproc = ^uintptr(3)
 
 var (
 	user32                       = windows.NewLazySystemDLL("user32.dll")
@@ -45,6 +51,15 @@ var (
 	procGetCursorPos             = user32.NewProc("GetCursorPos")
 	procGetWindowRect            = user32.NewProc("GetWindowRect")
 	procGetAsyncKeyState         = user32.NewProc("GetAsyncKeyState")
+	procCallWindowProc           = user32.NewProc("CallWindowProcW")
+)
+
+var (
+	closeToTrayOriginalProc uintptr
+	closeToTrayCallback     uintptr
+	closeToTrayHide         func()
+	closeToTrayQuitting     func() bool
+	closeToTrayInstalled    bool
 )
 
 func init() {
@@ -57,6 +72,51 @@ func init() {
 	isNativeControlDown = func() bool { return asyncKeyDown(vkControl) }
 	isNativeShiftDown = func() bool { return asyncKeyDown(vkShift) }
 	isNativeAltDown = func() bool { return asyncKeyDown(vkMenu) }
+	installNativeCloseToTray = installWindowsCloseToTray
+}
+
+func installWindowsCloseToTray(isQuitting func() bool, hide func()) {
+	if closeToTrayInstalled || isQuitting == nil || hide == nil {
+		return
+	}
+	hwnd := currentProcessWindow()
+	if hwnd == 0 {
+		return
+	}
+	closeToTrayQuitting = isQuitting
+	closeToTrayHide = hide
+	closeToTrayCallback = windows.NewCallback(closeToTrayWndProc)
+	original, _, _ := procSetWindowLongPtr.Call(uintptr(hwnd), gwlpWndproc, closeToTrayCallback)
+	if original == 0 {
+		closeToTrayQuitting = nil
+		closeToTrayHide = nil
+		return
+	}
+	closeToTrayOriginalProc = original
+	closeToTrayInstalled = true
+}
+
+func closeToTrayWndProc(hwnd, msg, wparam, lparam uintptr) uintptr {
+	if closeToTrayShouldHide(msg, wparam) {
+		go closeToTrayHide()
+		return 0
+	}
+	ret, _, _ := procCallWindowProc.Call(closeToTrayOriginalProc, hwnd, msg, wparam, lparam)
+	return ret
+}
+
+func closeToTrayShouldHide(msg, wparam uintptr) bool {
+	if closeToTrayQuitting == nil || closeToTrayHide == nil || closeToTrayQuitting() {
+		return false
+	}
+	switch msg {
+	case wmClose:
+		return true
+	case wmSyscommand:
+		return wparam&scMask == scClose
+	default:
+		return false
+	}
 }
 
 type windowsMouseInput struct {
