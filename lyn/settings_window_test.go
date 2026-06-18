@@ -51,6 +51,9 @@ func TestOpenSettingsWindowStartsSettingsProcess(t *testing.T) {
 		return nil
 	}
 	app := NewApp()
+	config := DefaultConfig()
+	config.Cache.Dir = t.TempDir()
+	app.UseConfig(config)
 	if err := app.OpenSettingsWindow(); err != nil {
 		t.Fatal(err)
 	}

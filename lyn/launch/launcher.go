@@ -98,23 +98,20 @@ func codeCommand(path string, distro string, goos string) launchCommand {
 		name = windowsCodeCommandName()
 	}
 	if parsed, ok := parseVSCodeRemoteURI(path); ok {
-		if isVSCodeCLIPathRemote(parsed.Host) {
-			return launchCommand{Name: name, Args: []string{"--remote", parsed.Host, parsed.Path}}
-		}
-		flag := "--folder-uri"
-		if strings.EqualFold(pathpkg.Ext(parsed.Path), ".code-workspace") {
-			flag = "--file-uri"
-		}
-		return launchCommand{Name: name, Args: []string{flag, path}}
+		return launchCommand{Name: name, Args: []string{remoteURIFlag(parsed.Path), path}}
 	}
 	if goos == "windows" && isUnixPath(path) {
-		return launchCommand{Name: name, Args: []string{"--remote", wslRemote(distro), path}}
+		uri := "vscode-remote://" + wslRemote(distro) + path
+		return launchCommand{Name: name, Args: []string{remoteURIFlag(path), uri}}
 	}
 	return launchCommand{Name: name, Args: []string{path}}
 }
 
-func isVSCodeCLIPathRemote(authority string) bool {
-	return strings.HasPrefix(authority, "ssh-remote+") || strings.HasPrefix(authority, "wsl+")
+func remoteURIFlag(path string) string {
+	if strings.EqualFold(pathpkg.Ext(path), ".code-workspace") {
+		return "--file-uri"
+	}
+	return "--folder-uri"
 }
 
 func parseVSCodeRemoteURI(path string) (*url.URL, bool) {

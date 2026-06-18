@@ -30,6 +30,8 @@ type App struct {
 	searchIndex           []searchProject
 	keyInterceptorCleanup func()
 	scanMutex             sync.Mutex
+	adminSessionMu        sync.Mutex
+	adminSession          *adminSession
 	shown                 bool
 	showSequence          uint64
 	autoHideSuppressed    bool
@@ -159,6 +161,7 @@ func (a *App) shutdown(context.Context) {
 	if keyInterceptorCleanup != nil {
 		keyInterceptorCleanup()
 	}
+	a.stopAdminSession()
 	tray.Stop()
 	if store != nil {
 		logRuntimeError(ctx, store.Close())
@@ -370,12 +373,41 @@ var launchAsync = func(fn func()) { go fn() }
 
 func (a *App) Launch(request launch.Request) launch.Result {
 	a.debugLog("launch.begin", "action", launch.NormalizedAction(request.Action), "path", request.Path)
-	result := launchRequest(request)
+	result := a.dispatchLaunch(request)
 	a.debugLog("launch.end", "command", result.Command, "args", strings.Join(result.Args, " "), "error", result.Error)
 	if result.Error == "" && request.Action != "reveal" {
 		launchAsync(func() { a.recordLaunch(request.Path) })
 	}
 	return result
+}
+
+func (a *App) dispatchLaunch(request launch.Request) launch.Result {
+	if session := a.adminLaunchSession(request); session != nil {
+		return session.run(request)
+	}
+	return launchRequest(request)
+}
+
+func (a *App) adminLaunchSession(request launch.Request) *adminSession {
+	if !shouldUseAdminHelper(request) {
+		return nil
+	}
+	a.adminSessionMu.Lock()
+	defer a.adminSessionMu.Unlock()
+	if a.adminSession == nil {
+		a.adminSession = newAdminLaunchSession(launchRequest, a.debugLog)
+	}
+	return a.adminSession
+}
+
+func (a *App) stopAdminSession() {
+	a.adminSessionMu.Lock()
+	session := a.adminSession
+	a.adminSession = nil
+	a.adminSessionMu.Unlock()
+	if session != nil {
+		session.stop()
+	}
 }
 
 func (a *App) recordLaunch(path string) {
@@ -417,7 +449,7 @@ func (a *App) ChooseWSLFolder() (WSLRoot, error) {
 	}
 	a.setWindowAutoHideSuppressed(true)
 	defer a.setWindowAutoHideSuppressed(false)
-	selected, err := runtime.OpenDirectoryDialog(ctx, runtime.OpenDialogOptions{Title: "Add WSL folder", DefaultDirectory: wslLocalhostPrefix})
+	selected, err := runtime.OpenDirectoryDialog(ctx, runtime.OpenDialogOptions{Title: "Add WSL folder", DefaultDirectory: wslDialogStartFolder()})
 	if err != nil || strings.TrimSpace(selected) == "" {
 		return WSLRoot{}, err
 	}

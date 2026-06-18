@@ -60,6 +60,43 @@ func wslWindowsRoot(distro string, unixPath string) string {
 	return wslLocalhostPrefix + distro + `\` + clean
 }
 
+func wslDialogStartFolder() string {
+	return chooseWSLDialogFolder(defaultWSLDistro(), wslHomeFolder, wslPathExists)
+}
+
+func chooseWSLDialogFolder(distro string, homeFor func(string) string, exists func(string) bool) string {
+	if distro == "" {
+		return ""
+	}
+	if home := homeFor(distro); home != "" {
+		return home
+	}
+	if root := wslWindowsRoot(distro, "/"); exists(root) {
+		return root
+	}
+	return ""
+}
+
+func wslHomeFolder(distro string) string {
+	out, err := wslCommand("-d", distro, "sh", "-c", `printf %s "$HOME"`).Output()
+	if err != nil {
+		return ""
+	}
+	home := strings.TrimSpace(string(out))
+	if home == "" {
+		return ""
+	}
+	if unc := wslWindowsRoot(distro, home); wslPathExists(unc) {
+		return unc
+	}
+	return ""
+}
+
+func wslPathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 func wslCommand(args ...string) *exec.Cmd {
 	cmd := exec.Command("wsl.exe", args...)
 	cmd.Env = append(os.Environ(), "WSL_UTF8=1")

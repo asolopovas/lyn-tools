@@ -33,6 +33,14 @@ func TestConfigureLaunchProcessKeepsInteractiveWindowsVisible(t *testing.T) {
 	}
 }
 
+func TestBuildCommandLineQuotesArguments(t *testing.T) {
+	got := buildCommandLine("explorer.exe", []string{`C:\Program Files\App\x`})
+	want := `explorer.exe "C:\Program Files\App\x"`
+	if got != want {
+		t.Fatalf("buildCommandLine = %q, want %q", got, want)
+	}
+}
+
 func TestWindowsUsesShellExecuteForLocalOpenRevealAndRunAs(t *testing.T) {
 	for _, action := range []string{"open", "reveal", "run-admin", "run-user"} {
 		if !windowsUsesShellExecute(`C:\Users\me\Desktop\App.lnk`, action) {

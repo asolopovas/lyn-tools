@@ -12,13 +12,18 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-const windowsShellShowNormal = 1
+const (
+	windowsShellShowNormal = 1
+	windowsShellHide       = 0
+)
 
 var elevationShellExecute = syscall.NewLazyDLL("shell32.dll").NewProc("ShellExecuteW")
 
 func init() {
 	detectElevationStatus = detectWindowsElevationStatus
 	startElevationProcess = startWindowsElevationProcess
+	newAdminLaunchSession = newWindowsAdminLaunchSession
+	runElevatedHelper = runWindowsElevatedHelper
 }
 
 func detectWindowsElevationStatus() ElevationStatus {
@@ -37,12 +42,12 @@ func startWindowsElevationProcess(mode string, args []string) error {
 	parameters := windowsCommandLine(args)
 	workingDirectory := filepath.Dir(exe)
 	if mode == elevationModeAdmin {
-		return shellExecuteProcess("runas", exe, parameters, workingDirectory)
+		return shellExecuteProcess("runas", exe, parameters, workingDirectory, windowsShellShowNormal)
 	}
-	return shellExecuteProcess("open", "explorer.exe", windowsCommandLine(append([]string{exe}, args...)), workingDirectory)
+	return shellExecuteProcess("open", "explorer.exe", windowsCommandLine(append([]string{exe}, args...)), workingDirectory, windowsShellShowNormal)
 }
 
-func shellExecuteProcess(operation string, target string, parameters string, workingDirectory string) error {
+func shellExecuteProcess(operation string, target string, parameters string, workingDirectory string, show int32) error {
 	operationPtr, err := syscall.UTF16PtrFromString(operation)
 	if err != nil {
 		return err
@@ -73,7 +78,7 @@ func shellExecuteProcess(operation string, target string, parameters string, wor
 		uintptr(unsafe.Pointer(targetPtr)),
 		parametersPtr,
 		workingDirectoryPtr,
-		uintptr(windowsShellShowNormal),
+		uintptr(show),
 	)
 	if ret <= 32 {
 		if callErr != syscall.Errno(0) {

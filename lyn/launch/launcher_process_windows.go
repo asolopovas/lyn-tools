@@ -3,11 +3,14 @@
 package launch
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 const (
@@ -15,28 +18,60 @@ const (
 	windowsShellShowNormal = 1
 )
 
-var windowsShellExecute = syscall.NewLazyDLL("shell32.dll").NewProc("ShellExecuteW")
+var (
+	windowsShellExecute          = syscall.NewLazyDLL("shell32.dll").NewProc("ShellExecuteW")
+	user32                       = syscall.NewLazyDLL("user32.dll")
+	procGetShellWindow           = user32.NewProc("GetShellWindow")
+	procGetWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
+)
+
+var errNoShellWindow = errors.New("no shell window available to launch as the user")
 
 func startLaunchCommand(path string, cmd launchCommand, action string) error {
 	path = strings.TrimSpace(path)
 	if windowsUsesShellExecute(path, action) {
-		target := path
-		operation := "open"
-		workingDirectory := ""
 		switch action {
-		case "reveal":
-			target = containingLocation(path, "windows")
 		case "run-admin":
-			operation = "runAs"
-			workingDirectory = containingLocation(path, "windows")
+			return shellExecute(path, "runAs", containingLocation(path, "windows"))
 		case "run-user":
-			operation = "runAsUser"
-			workingDirectory = containingLocation(path, "windows")
+			return shellExecute(path, "runAsUser", containingLocation(path, "windows"))
 		}
-		return shellExecute(target, operation, workingDirectory)
+		target := path
+		if action == "reveal" {
+			target = containingLocation(path, "windows")
+		}
+		return openPathForUser(target)
 	}
-	process := exec.Command(cmd.Name, cmd.Args...)
-	return startBackgroundProcess(process, action)
+	return startProcessForUser(cmd, action)
+}
+
+func openPathForUser(target string) error {
+	if processIsElevated() {
+		return startProcessAsShellUser("explorer.exe", []string{target}, false)
+	}
+	return shellExecute(target, "open", "")
+}
+
+func startProcessForUser(cmd launchCommand, action string) error {
+	if !processIsElevated() {
+		process := exec.Command(cmd.Name, cmd.Args...)
+		return startBackgroundProcess(process, action)
+	}
+	if action == "code" {
+		if cli, ok := windowsCodeCLIPath(); ok {
+			return startProcessAsShellUser("cmd.exe", append([]string{"/c", cli}, cmd.Args...), true)
+		}
+	}
+	hide := action != "terminal" && action != "code"
+	return startProcessAsShellUser(cmd.Name, cmd.Args, hide)
+}
+
+func windowsCodeCLIPath() (string, bool) {
+	path, err := exec.LookPath("code")
+	if err != nil {
+		return "", false
+	}
+	return path, true
 }
 
 func startBackgroundProcess(process *exec.Cmd, action string) error {
@@ -58,6 +93,75 @@ func configureLaunchProcess(process *exec.Cmd, action string) {
 		HideWindow:    true,
 		CreationFlags: windowsDetachedProcess,
 	}
+}
+
+func processIsElevated() bool {
+	return windows.GetCurrentProcessToken().IsElevated()
+}
+
+func startProcessAsShellUser(name string, args []string, hide bool) error {
+	pid, err := shellProcessID()
+	if err != nil {
+		return err
+	}
+	parent, err := windows.OpenProcess(windows.PROCESS_CREATE_PROCESS, false, pid)
+	if err != nil {
+		return fmt.Errorf("open shell process: %w", err)
+	}
+	defer windows.CloseHandle(parent)
+
+	attributes, err := windows.NewProcThreadAttributeList(1)
+	if err != nil {
+		return err
+	}
+	defer attributes.Delete()
+	if err := attributes.Update(windows.PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, unsafe.Pointer(&parent), unsafe.Sizeof(parent)); err != nil {
+		return err
+	}
+
+	commandLine, err := windows.UTF16PtrFromString(buildCommandLine(name, args))
+	if err != nil {
+		return err
+	}
+
+	var startup windows.StartupInfoEx
+	startup.StartupInfo.Cb = uint32(unsafe.Sizeof(startup))
+	startup.ProcThreadAttributeList = attributes.List()
+	flags := uint32(windows.EXTENDED_STARTUPINFO_PRESENT)
+	if hide {
+		startup.StartupInfo.Flags = windows.STARTF_USESHOWWINDOW
+		startup.StartupInfo.ShowWindow = windows.SW_HIDE
+		flags |= windows.CREATE_NO_WINDOW
+	}
+
+	var info windows.ProcessInformation
+	if err := windows.CreateProcess(nil, commandLine, nil, nil, false, flags, nil, nil, &startup.StartupInfo, &info); err != nil {
+		return fmt.Errorf("launch as user: %w", err)
+	}
+	_ = windows.CloseHandle(info.Thread)
+	_ = windows.CloseHandle(info.Process)
+	return nil
+}
+
+func shellProcessID() (uint32, error) {
+	hwnd, _, _ := procGetShellWindow.Call()
+	if hwnd == 0 {
+		return 0, errNoShellWindow
+	}
+	var pid uint32
+	if _, _, _ = procGetWindowThreadProcessId.Call(hwnd, uintptr(unsafe.Pointer(&pid))); pid == 0 {
+		return 0, errNoShellWindow
+	}
+	return pid, nil
+}
+
+func buildCommandLine(name string, args []string) string {
+	parts := make([]string, 0, len(args)+1)
+	parts = append(parts, syscall.EscapeArg(name))
+	for _, arg := range args {
+		parts = append(parts, syscall.EscapeArg(arg))
+	}
+	return strings.Join(parts, " ")
 }
 
 func windowsUsesShellExecute(path string, action string) bool {

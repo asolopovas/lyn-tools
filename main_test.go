@@ -25,6 +25,16 @@ func TestWailsOptionsDisableResize(t *testing.T) {
 	}
 }
 
+func TestElevatedHelperArg(t *testing.T) {
+	name, ok := elevatedHelperArg([]string{"--start-hidden", `--elevated-helper=\\.\pipe\lyn-elevated-abc`})
+	if !ok || name != `\\.\pipe\lyn-elevated-abc` {
+		t.Fatalf("unexpected helper arg %q ok=%v", name, ok)
+	}
+	if _, ok := elevatedHelperArg([]string{"--debug", "--settings-window"}); ok {
+		t.Fatal("did not expect helper arg")
+	}
+}
+
 func TestWindowModeFromArgs(t *testing.T) {
 	if windowModeFromArgs([]string{"--debug", "--settings-window"}) != lyn.SettingsWindowMode {
 		t.Fatal("expected settings mode")

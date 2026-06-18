@@ -26,12 +26,12 @@ func TestBuildLaunchCommandWindowsCodeUsesPath(t *testing.T) {
 	}
 }
 
-func TestBuildLaunchCommandWindowsWslCodeUsesRemote(t *testing.T) {
+func TestBuildLaunchCommandWindowsWslCodeUsesFolderURI(t *testing.T) {
 	cmd, err := BuildLaunchCommand(Request{Path: "/home/me/src/app", Action: "code"}, "windows")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cmd.Args) != 3 || cmd.Args[0] != "--remote" || cmd.Args[1] != "wsl+default" || cmd.Args[2] != "/home/me/src/app" {
+	if len(cmd.Args) != 2 || cmd.Args[0] != "--folder-uri" || cmd.Args[1] != "vscode-remote://wsl+default/home/me/src/app" {
 		t.Fatalf("unexpected command %#v", cmd)
 	}
 }
@@ -41,7 +41,7 @@ func TestBuildLaunchCommandWindowsWslCodeUsesNamedDistro(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cmd.Args) != 3 || cmd.Args[1] != "wsl+Ubuntu" {
+	if len(cmd.Args) != 2 || cmd.Args[0] != "--folder-uri" || cmd.Args[1] != "vscode-remote://wsl+Ubuntu/home/me/src/app" {
 		t.Fatalf("unexpected command %#v", cmd)
 	}
 }
@@ -56,24 +56,24 @@ func TestBuildLaunchCommandWindowsWslTerminalUsesNamedDistro(t *testing.T) {
 	}
 }
 
-func TestBuildLaunchCommandVSCodeRemoteSSHFolderUsesRemotePath(t *testing.T) {
+func TestBuildLaunchCommandVSCodeRemoteSSHFolderUsesFolderURI(t *testing.T) {
 	path := "vscode-remote://ssh-remote+examplehost/srv/www/example"
 	cmd, err := BuildLaunchCommand(Request{Path: path, Action: "code"}, "windows")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cmd.Args) != 3 || cmd.Args[0] != "--remote" || cmd.Args[1] != "ssh-remote+examplehost" || cmd.Args[2] != "/srv/www/example" {
+	if len(cmd.Args) != 2 || cmd.Args[0] != "--folder-uri" || cmd.Args[1] != path {
 		t.Fatalf("unexpected command %#v", cmd)
 	}
 }
 
-func TestBuildLaunchCommandVSCodeRemoteSSHWorkspaceUsesRemotePath(t *testing.T) {
+func TestBuildLaunchCommandVSCodeRemoteSSHWorkspaceUsesFileURI(t *testing.T) {
 	path := "vscode-remote://ssh-remote+examplehost/var/www/example.com/public_html/wp-content/themes/example_theme/example.code-workspace"
 	cmd, err := BuildLaunchCommand(Request{Path: path, Action: "code"}, "windows")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cmd.Args) != 3 || cmd.Args[0] != "--remote" || cmd.Args[1] != "ssh-remote+examplehost" || cmd.Args[2] != "/var/www/example.com/public_html/wp-content/themes/example_theme/example.code-workspace" {
+	if len(cmd.Args) != 2 || cmd.Args[0] != "--file-uri" || cmd.Args[1] != path {
 		t.Fatalf("unexpected command %#v", cmd)
 	}
 }

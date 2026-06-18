@@ -117,13 +117,18 @@ function addRootFromInput(event: KeyboardEvent): void {
             @keydown="$emit('capture-hotkey', $event)"
           >
             <span class="settings-row-label"
-              ><span class="settings-symbol">⌨</span>Global shortcut</span
+              ><span class="settings-symbol"
+                ><svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path :d="icons.keyboard" /></svg></span
+              >Global shortcut</span
             >
             <code>{{ recordingHotkey ? "Press keys" : cfg.hotkey.binding }}</code>
           </button>
           <label class="settings-action-row workspace-trigger-row">
             <span class="settings-row-label"
-              ><span class="settings-symbol">⠿</span>Workspace trigger</span
+              ><span class="settings-symbol"
+                ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.grid" /></svg></span
+              >Workspace trigger</span
             >
             <input
               v-model="cfg.ui.workspaceQueryShortcut"
@@ -145,7 +150,9 @@ function addRootFromInput(event: KeyboardEvent): void {
             :disabled="!elevationStatus?.canSwitch || elevationStatus?.mode === 'standard'"
             @click="$emit('switch-elevation', 'standard')"
           >
-            <span class="process-glyph">♙</span>
+            <span class="process-glyph"
+              ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.account" /></svg
+            ></span>
             <span class="process-radio" aria-hidden="true"></span>
             <strong>Standard Mode</strong>
             <small
@@ -160,7 +167,9 @@ function addRootFromInput(event: KeyboardEvent): void {
             :disabled="!elevationStatus?.canSwitch || elevationStatus?.mode === 'admin'"
             @click="$emit('switch-elevation', 'admin')"
           >
-            <span class="process-glyph">♢</span>
+            <span class="process-glyph"
+              ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.shieldAccount" /></svg
+            ></span>
             <span class="process-radio" aria-hidden="true"></span>
             <strong>Administrative Mode</strong>
             <small
@@ -197,7 +206,7 @@ function addRootFromInput(event: KeyboardEvent): void {
               >{{ root }}</span
             >
             <button type="button" title="Remove folder" @click="$emit('remove-root', index)">
-              ⌫
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.delete" /></svg>
             </button>
           </div>
           <div class="root-add-row">
@@ -243,7 +252,7 @@ function addRootFromInput(event: KeyboardEvent): void {
               }}<small v-if="root.distro" class="root-distro">{{ root.distro }}</small></span
             >
             <button type="button" title="Remove folder" @click="$emit('remove-wsl-root', index)">
-              ⌫
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.delete" /></svg>
             </button>
           </div>
           <p v-if="!(cfg.scanner.wslRoots && cfg.scanner.wslRoots.length)" class="root-empty-hint">
@@ -285,11 +294,17 @@ function addRootFromInput(event: KeyboardEvent): void {
     </main>
 
     <nav class="settings-bottom-bar">
-      <button type="button" @click="$emit('export-theme')"><span>↥</span>Export</button>
-      <button type="button" @click="$emit('import-theme')"><span>↧</span>Import</button>
-      <button type="button" @click="$emit('close')"><span>×</span>Cancel</button>
+      <button type="button" @click="$emit('export-theme')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.export" /></svg>Export
+      </button>
+      <button type="button" @click="$emit('import-theme')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.import" /></svg>Import
+      </button>
+      <button type="button" @click="$emit('close')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.close" /></svg>Cancel
+      </button>
       <button class="settings-save-button" type="button" @click="$emit('save')">
-        <span>✓</span>Save
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.check" /></svg>Save
       </button>
     </nav>
   </div>

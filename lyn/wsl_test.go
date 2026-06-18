@@ -2,6 +2,32 @@ package lyn
 
 import "testing"
 
+func TestChooseWSLDialogFolder(t *testing.T) {
+	exists := func(p string) bool { return p == `\\wsl.localhost\Ubuntu` }
+	cases := []struct {
+		name   string
+		distro string
+		home   func(string) string
+		want   string
+	}{
+		{name: "no distro", distro: "", home: func(string) string { return "" }, want: ""},
+		{name: "home resolved", distro: "Ubuntu", home: func(string) string { return `\\wsl.localhost\Ubuntu\home\me` }, want: `\\wsl.localhost\Ubuntu\home\me`},
+		{name: "home empty falls back to existing distro root", distro: "Ubuntu", home: func(string) string { return "" }, want: `\\wsl.localhost\Ubuntu`},
+		{name: "home empty and root missing yields no default", distro: "Other", home: func(string) string { return "" }, want: ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := chooseWSLDialogFolder(tc.distro, tc.home, exists)
+			if got != tc.want {
+				t.Fatalf("chooseWSLDialogFolder(%q) = %q, want %q", tc.distro, got, tc.want)
+			}
+			if got == wslLocalhostPrefix {
+				t.Fatalf("dialog folder must never be the bare prefix %q", wslLocalhostPrefix)
+			}
+		})
+	}
+}
+
 func TestWSLUnixFromUNC(t *testing.T) {
 	cases := []struct {
 		name       string

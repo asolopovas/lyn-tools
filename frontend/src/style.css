@@ -562,9 +562,13 @@ small {
   line-height: 20px;
 }
 .settings-symbol {
+  display: inline-flex;
   color: var(--settings-muted);
-  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets", sans-serif;
-  font-size: 18px;
+}
+.settings-symbol svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
 }
 .settings-action-row code {
   flex: 0 0 auto;
@@ -612,6 +616,14 @@ small {
 }
 .process-card.admin .process-glyph {
   color: var(--settings-error);
+}
+.process-glyph {
+  display: inline-flex;
+}
+.process-glyph svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
 }
 .process-radio {
   position: absolute;
@@ -715,6 +727,11 @@ small {
   background: var(--settings-surface-high);
   color: var(--settings-error);
 }
+.root-row button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
 .root-add-row {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -774,10 +791,10 @@ small {
   font-size: 12px;
   font-weight: 400;
 }
-.settings-bottom-bar button span {
-  color: inherit;
-  font-size: 18px;
-  line-height: 18px;
+.settings-bottom-bar button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
 }
 .settings-bottom-bar button:hover {
   background: var(--settings-surface-highest);
