@@ -33,6 +33,15 @@ func TestConfigureLaunchProcessKeepsInteractiveWindowsVisible(t *testing.T) {
 	}
 }
 
+func TestAllowForegroundForInteractiveLaunch(t *testing.T) {
+	for _, action := range []string{"code", "terminal"} {
+		allowForegroundForInteractiveLaunch(action)
+	}
+	for _, action := range []string{"open", "reveal", "run-admin", "run-user", ""} {
+		allowForegroundForInteractiveLaunch(action)
+	}
+}
+
 func TestBuildCommandLineQuotesArguments(t *testing.T) {
 	got := buildCommandLine("explorer.exe", []string{`C:\Program Files\App\x`})
 	want := `explorer.exe "C:\Program Files\App\x"`

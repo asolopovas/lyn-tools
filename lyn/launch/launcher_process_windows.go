@@ -23,7 +23,10 @@ var (
 	user32                       = syscall.NewLazyDLL("user32.dll")
 	procGetShellWindow           = user32.NewProc("GetShellWindow")
 	procGetWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
+	procAllowSetForegroundWindow = user32.NewProc("AllowSetForegroundWindow")
 )
+
+const windowsAllowForegroundAny = ^uintptr(0)
 
 var errNoShellWindow = errors.New("no shell window available to launch as the user")
 
@@ -42,7 +45,15 @@ func startLaunchCommand(path string, cmd launchCommand, action string) error {
 		}
 		return openPathForUser(target)
 	}
+	allowForegroundForInteractiveLaunch(action)
 	return startProcessForUser(cmd, action)
+}
+
+func allowForegroundForInteractiveLaunch(action string) {
+	if action != "code" && action != "terminal" {
+		return
+	}
+	_, _, _ = procAllowSetForegroundWindow.Call(windowsAllowForegroundAny)
 }
 
 func openPathForUser(target string) error {
