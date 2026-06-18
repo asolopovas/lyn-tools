@@ -417,6 +417,9 @@ small {
   color: var(--m3-on-surface);
   padding: 10px 12px;
 }
+.settings-field select {
+  padding-right: 32px;
+}
 .settings-field select:focus,
 .settings-field input:not([type="range"]):not([type="color"]):focus,
 .workspace-trigger-row input:focus {
@@ -708,6 +711,33 @@ small {
 }
 .settings-link-button:disabled {
   opacity: 0.45;
+}
+.settings-add-button {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  margin-top: 2px;
+  padding: 0 18px 0 14px;
+  border: 1px solid var(--m3-outline-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--m3-accent);
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+.settings-add-button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+.settings-add-button:hover {
+  background: var(--m3-state);
+  border-color: var(--m3-accent);
 }
 .root-row {
   position: relative;

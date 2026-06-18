@@ -173,9 +173,6 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
             >
               {{ scanning ? "Scanning" : "Scan" }}
             </button>
-            <button class="settings-link-button" type="button" @click="$emit('browse-root')">
-              Add
-            </button>
             <button
               class="settings-link-button"
               :class="{ active: cfg.scanner.watch }"
@@ -202,16 +199,14 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
             Add a folder to index your projects.
           </p>
         </div>
+        <button class="settings-add-button" type="button" @click="$emit('browse-root')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.add" /></svg>Add folder
+        </button>
       </section>
 
       <section v-if="wslPresent" class="settings-section">
         <div class="settings-section-title-row">
           <h2>WSL folders</h2>
-          <div class="settings-section-actions">
-            <button class="settings-link-button" type="button" @click="$emit('browse-wsl-root')">
-              Add
-            </button>
-          </div>
         </div>
         <div class="settings-card">
           <div
@@ -232,6 +227,9 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
             Pick a folder from \\wsl.localhost; it is stored and shown as a Unix path.
           </p>
         </div>
+        <button class="settings-add-button" type="button" @click="$emit('browse-wsl-root')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.add" /></svg>Add WSL folder
+        </button>
       </section>
 
       <section class="settings-section">
