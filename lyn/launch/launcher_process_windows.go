@@ -176,7 +176,7 @@ func buildCommandLine(name string, args []string) string {
 }
 
 func windowsUsesShellExecute(path string, action string) bool {
-	return (action == "open" || action == "reveal" || action == "run-admin" || action == "run-user") && path != "" && !isUnixPath(path)
+	return (action == "open" || action == "reveal" || action == "run-admin" || action == "run-user") && path != "" && !isUnixPath(path) && !isSystemCommandPath(path)
 }
 
 func shellExecute(path string, operation string, workingDirectory string) error {

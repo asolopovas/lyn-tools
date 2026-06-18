@@ -45,7 +45,7 @@ func compareProjects(a, b Project) int {
 }
 
 func compareRankedProjects(a, b Project) int {
-	if byKind := workspaceRank(a) - workspaceRank(b); byKind != 0 {
+	if byKind := kindRank(a) - kindRank(b); byKind != 0 {
 		return byKind
 	}
 	if byUsage := cmp.Compare(b.UsageCount, a.UsageCount); byUsage != 0 {
@@ -57,11 +57,23 @@ func compareRankedProjects(a, b Project) int {
 	return compareProjects(a, b)
 }
 
-func workspaceRank(p Project) int {
-	if p.Kind == projectKindVSCodeWorkspace {
+func kindRank(p Project) int {
+	switch {
+	case p.Kind == projectKindVSCodeWorkspace:
 		return 0
+	case p.Kind == projectKindSystemCommand:
+		return 3
+	case isSSHRemoteProject(p):
+		return 2
+	default:
+		return 1
 	}
-	return 1
+}
+
+func isSSHRemoteProject(p Project) bool {
+	lower := strings.ToLower(p.Path)
+	return strings.HasPrefix(lower, "vscode-remote://ssh-remote+") ||
+		strings.HasPrefix(lower, "vscode-remote://ssh-remote%2b")
 }
 
 type projectSet map[string]Project

@@ -233,6 +233,7 @@ func TestProjectsReadsVSCodeRecentsLiveWithoutCopyingToStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	indexed = withoutSystemCommands(indexed)
 	if len(indexed) != 2 {
 		t.Fatalf("expected cached and live recent projects in search index, got %#v", indexed)
 	}
@@ -273,7 +274,19 @@ func TestProjectsReturnsCachedItemsBeforeScanning(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	items = withoutSystemCommands(items)
 	if len(items) != 1 || items[0].Path != cached.Path {
 		t.Fatalf("unexpected projects %#v", items)
 	}
+}
+
+func withoutSystemCommands(projects []Project) []Project {
+	filtered := make([]Project, 0, len(projects))
+	for _, project := range projects {
+		if project.Kind == projectKindSystemCommand {
+			continue
+		}
+		filtered = append(filtered, project)
+	}
+	return filtered
 }

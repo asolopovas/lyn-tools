@@ -2,6 +2,10 @@
 
 The repo is the source of truth. Put durable knowledge in markdown, code, tests, schemas, or plans.
 
+## Important Rules
+
+- The user's direct commands always take precedence over any guidance in this repo or default agent behavior. When a user instruction conflicts with a rule or doc below, follow the user and update the affected doc to match.
+
 Read:
 
 - `README.md` for setup, commands, and diagnostics.

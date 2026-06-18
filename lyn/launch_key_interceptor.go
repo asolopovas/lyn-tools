@@ -36,12 +36,12 @@ func (a *App) hasCachedLaunchSelection() bool {
 	a.launchSelectionMu.Lock()
 	path := a.launchSelection.Path
 	a.launchSelectionMu.Unlock()
-	return strings.TrimSpace(path) != "" && !isDisabledSystemPath(path)
+	return strings.TrimSpace(path) != "" && !isSystemCommandPath(path)
 }
 
 func (a *App) runNativeShortcut(action string) {
 	request := a.currentLaunchSelection()
-	if strings.TrimSpace(request.Path) == "" || isDisabledSystemPath(request.Path) {
+	if strings.TrimSpace(request.Path) == "" || isSystemCommandPath(request.Path) {
 		a.debugLog("launch.native.missing")
 		return
 	}
@@ -94,7 +94,7 @@ func (a *App) currentLaunchSelection() launch.Request {
 	a.launchSelectionMu.Unlock()
 	request.Action = launch.NormalizedAction(request.Action)
 	if strings.TrimSpace(request.Path) != "" {
-		if isDisabledSystemPath(request.Path) {
+		if isSystemCommandPath(request.Path) {
 			return launch.Request{}
 		}
 		return request
@@ -109,7 +109,7 @@ func (a *App) currentLaunchSelection() launch.Request {
 	}
 	project := Project{}
 	for _, candidate := range projects {
-		if candidate.Kind != projectKindSystemCommand && !isDisabledSystemPath(candidate.Path) {
+		if candidate.Kind != projectKindSystemCommand && !isSystemCommandPath(candidate.Path) {
 			project = candidate
 			break
 		}
@@ -123,8 +123,4 @@ func (a *App) currentLaunchSelection() launch.Request {
 	}
 	a.debugLog("launch.native.fallback", "action", action, "path", project.Path, "error", err)
 	return launch.Request{Path: project.Path, Action: action}
-}
-
-func isDisabledSystemPath(path string) bool {
-	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(path)), "lyn:system:")
 }

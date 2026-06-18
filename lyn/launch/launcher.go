@@ -48,8 +48,8 @@ func BuildLaunchCommand(req Request, goos string) (launchCommand, error) {
 		return launchCommand{}, errors.New("launch path is required")
 	}
 	action := NormalizedAction(req.Action)
-	if strings.HasPrefix(strings.ToLower(path), "lyn:system:") {
-		return launchCommand{}, errors.New("system commands are disabled")
+	if isSystemCommandPath(path) {
+		return systemCommand(path, goos)
 	}
 	if goos == "windows" && isWindowsPackagedAppPath(path) && action != "open" && action != "code" {
 		action = "open"
@@ -238,4 +238,8 @@ func isWindowsAppShortcut(path string) bool {
 
 func isUnixPath(path string) bool {
 	return strings.HasPrefix(filepath.ToSlash(path), "/")
+}
+
+func isSystemCommandPath(path string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(path)), "lyn:system:")
 }

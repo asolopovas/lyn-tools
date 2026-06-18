@@ -250,7 +250,7 @@ func (a *App) setSearchIndex(projects []Project) {
 }
 
 func (a *App) indexProjects(cacheable, recent []Project) []Project {
-	items := mergeProjects(cacheable, recent)
+	items := mergeProjects(cacheable, recent, systemCommands())
 	a.setSearchIndex(items)
 	return items
 }

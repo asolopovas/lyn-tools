@@ -13,10 +13,7 @@ export function readLauncherCache(): CachedLauncherState | null {
     if (!isCachedLauncherState(parsed)) {
       return null;
     }
-    return {
-      ...parsed,
-      projects: parsed.projects.filter(isSafeProject),
-    };
+    return parsed;
   } catch (error) {
     reportLauncherCacheError(error);
     return null;
@@ -35,7 +32,7 @@ export function writeLauncherCache(
     const state: CachedLauncherState = {
       version: 1,
       cfg,
-      projects: projects.filter(isSafeProject),
+      projects,
       projectIcons,
     };
     window.localStorage.setItem(launcherCacheKey, JSON.stringify(state));
@@ -111,10 +108,6 @@ function isProject(value: unknown): value is Project {
     hasNumber(value, "usageCount") &&
     hasString(value, "lastLaunchedAt")
   );
-}
-
-function isSafeProject(project: Project): boolean {
-  return project.kind !== "system-command" && !project.path.startsWith("lyn:system:");
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {

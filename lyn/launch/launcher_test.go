@@ -3,6 +3,7 @@ package launch
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -106,14 +107,48 @@ func TestBuildLaunchCommandRejectsUnsupportedAction(t *testing.T) {
 	}
 }
 
-func TestBuildLaunchCommandRejectsSystemCommands(t *testing.T) {
-	for _, path := range []string{"lyn:system:restart", "lyn:system:shutdown", "lyn:system:logout"} {
+func TestBuildLaunchCommandWindowsSystemCommands(t *testing.T) {
+	cases := map[string][]string{
+		"lyn:system:restart":  {"/r", "/t", "0"},
+		"lyn:system:shutdown": {"/s", "/t", "0"},
+		"lyn:system:logout":   {"/l"},
+	}
+	for path, wantArgs := range cases {
 		t.Run(path, func(t *testing.T) {
-			_, err := BuildLaunchCommand(Request{Path: path, Action: "open"}, "windows")
-			if err == nil {
-				t.Fatal("expected error")
+			cmd, err := BuildLaunchCommand(Request{Path: path, Action: "open"}, "windows")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cmd.Name != "shutdown.exe" {
+				t.Fatalf("unexpected command %q", cmd.Name)
+			}
+			if strings.Join(cmd.Args, " ") != strings.Join(wantArgs, " ") {
+				t.Fatalf("unexpected args %v, want %v", cmd.Args, wantArgs)
 			}
 		})
+	}
+}
+
+func TestBuildLaunchCommandLinuxSystemCommands(t *testing.T) {
+	restart, err := BuildLaunchCommand(Request{Path: "lyn:system:restart", Action: "open"}, "linux")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restart.Name != "systemctl" || strings.Join(restart.Args, " ") != "reboot" {
+		t.Fatalf("unexpected restart command %+v", restart)
+	}
+	shutdown, err := BuildLaunchCommand(Request{Path: "lyn:system:shutdown", Action: "open"}, "linux")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shutdown.Name != "systemctl" || strings.Join(shutdown.Args, " ") != "poweroff" {
+		t.Fatalf("unexpected shutdown command %+v", shutdown)
+	}
+}
+
+func TestBuildLaunchCommandUnknownSystemCommand(t *testing.T) {
+	if _, err := BuildLaunchCommand(Request{Path: "lyn:system:bogus", Action: "open"}, "windows"); err == nil {
+		t.Fatal("expected error for unknown system command")
 	}
 }
 
