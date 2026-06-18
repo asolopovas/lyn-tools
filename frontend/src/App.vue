@@ -70,7 +70,6 @@ const launcherHeight = computed(() => (settingsOpen.value ? settingsHeight : 306
 const windowWidth = computed(() => (settingsOpen.value ? settingsWidth : launcherWidth));
 const settings = useSettingsState({
   cfg,
-  activeTheme,
   status,
   updateMatches,
   cacheState,
@@ -78,25 +77,25 @@ const settings = useSettingsState({
   api,
 });
 const {
-  rootDraft,
-  themeDraft,
+  wslDistros,
   elevationStatus,
   recordingHotkey,
   blurHideSuppressed,
-  addRoot,
   browseRoot,
   browseWSLRoot,
   removeWSLRoot,
   captureHotkey,
-  exportTheme,
-  importTheme,
   loadElevationStatus,
+  loadWSLDistros,
   normalizeWorkspaceShortcut,
   removeRoot,
   saveSettings,
   switchElevation,
   toggleHotkeyRecording,
 } = settings;
+const wslPresent = computed(
+  () => wslDistros.value.length > 0 || (cfg.value?.scanner.wslRoots?.length ?? 0) > 0,
+);
 const {
   launchAtIndex,
   launchDefault,
@@ -130,8 +129,8 @@ watch(selectedProject, () => {
 
 watch(settingsOpen, (open) => {
   if (open) {
-    exportTheme();
     void loadElevationStatus();
+    void loadWSLDistros();
   }
   void nextTick(() => {
     placeLauncher();
@@ -309,7 +308,6 @@ onMounted(() => {
     settingsOpen.value = settingsWindow.value;
     if (settingsWindow.value) {
       await loadConfigOnly();
-      exportTheme();
       await loadElevationStatus();
       placeLauncher();
       appReady.value = true;
@@ -370,21 +368,17 @@ onUnmounted(() => {
       <SettingsPanel
         v-if="settingsOpen && cfg"
         v-model:cfg="cfg"
-        v-model:root-draft="rootDraft"
-        v-model:theme-draft="themeDraft"
         :theme-keys="themeKeys"
         :scanning="scanning"
+        :wsl-present="wslPresent"
         :elevation-status="elevationStatus"
         :recording-hotkey="recordingHotkey"
         @close="closeSettings"
         @save="saveSettings"
         @scan="scan"
-        @export-theme="exportTheme"
-        @import-theme="importTheme"
         @browse-root="browseRoot"
         @browse-wsl-root="browseWSLRoot"
         @switch-elevation="switchElevation"
-        @add-root="addRoot()"
         @remove-root="removeRoot"
         @remove-wsl-root="removeWSLRoot"
         @normalize-workspace-shortcut="normalizeWorkspaceShortcut"

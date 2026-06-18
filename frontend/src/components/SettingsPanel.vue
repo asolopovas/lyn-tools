@@ -1,31 +1,26 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { consumeEvent } from "../hotkeys";
 import { icons } from "../icons";
 import { themeByKey } from "../themes";
 import type { ElevationMode, ElevationStatus, LynConfig } from "../types";
 
 const cfg = defineModel<LynConfig>("cfg", { required: true });
-const rootDraft = defineModel<string>("rootDraft", { required: true });
-const themeDraft = defineModel<string>("themeDraft", { required: true });
 
 const props = defineProps<{
   themeKeys: string[];
   scanning: boolean;
+  wslPresent: boolean;
   elevationStatus: ElevationStatus | null;
   recordingHotkey: boolean;
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   close: [];
   save: [];
   scan: [];
-  "export-theme": [];
-  "import-theme": [];
   "browse-root": [];
   "browse-wsl-root": [];
   "switch-elevation": [mode: ElevationMode];
-  "add-root": [];
   "remove-root": [index: number];
   "remove-wsl-root": [index: number];
   "normalize-workspace-shortcut": [];
@@ -36,11 +31,6 @@ const emit = defineEmits<{
 const opacityPercent = computed(() => `${Math.round(cfg.value.ui.backgroundOpacity * 100)}%`);
 const standardModeSelected = computed(() => props.elevationStatus?.mode !== "admin");
 const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin");
-
-function addRootFromInput(event: KeyboardEvent): void {
-  consumeEvent(event, false);
-  emit("add-root");
-}
 </script>
 
 <template>
@@ -50,7 +40,7 @@ function addRootFromInput(event: KeyboardEvent): void {
         <svg class="settings-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
           <path :d="icons.settings" />
         </svg>
-        <h1>Lyn Settings</h1>
+        <h1>Settings</h1>
       </div>
       <button
         class="settings-icon-button"
@@ -87,17 +77,11 @@ function addRootFromInput(event: KeyboardEvent): void {
             />
           </label>
           <label class="settings-field settings-card-row color-field-row">
-            <span>Item highlighter</span>
+            <span>Highlight color</span>
             <input v-model="cfg.ui.selectionColor" type="color" />
           </label>
-          <label class="settings-field settings-card-row">
-            <span>Launcher Position</span>
-            <select v-model="cfg.ui.windowPlacement">
-              <option value="center">Center</option>
-            </select>
-          </label>
           <label class="settings-toggle-row settings-card-row">
-            <span>Clear input when launcher opens</span>
+            <span>Clear search when launcher opens</span>
             <span class="modern-switch">
               <input v-model="cfg.ui.clearQueryOnShow" type="checkbox" />
               <span class="modern-switch-track" aria-hidden="true"></span>
@@ -107,7 +91,7 @@ function addRootFromInput(event: KeyboardEvent): void {
       </section>
 
       <section class="settings-section">
-        <h2>Hotkeys</h2>
+        <h2>Shortcuts</h2>
         <div class="settings-card">
           <button
             class="settings-action-row"
@@ -120,7 +104,7 @@ function addRootFromInput(event: KeyboardEvent): void {
               ><span class="settings-symbol"
                 ><svg viewBox="0 0 24 24" aria-hidden="true">
                   <path :d="icons.keyboard" /></svg></span
-              >Global shortcut</span
+              >Open launcher</span
             >
             <code>{{ recordingHotkey ? "Press keys" : cfg.hotkey.binding }}</code>
           </button>
@@ -128,7 +112,7 @@ function addRootFromInput(event: KeyboardEvent): void {
             <span class="settings-row-label"
               ><span class="settings-symbol"
                 ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.grid" /></svg></span
-              >Workspace trigger</span
+              >Workspace filter key</span
             >
             <input
               v-model="cfg.ui.workspaceQueryShortcut"
@@ -141,7 +125,7 @@ function addRootFromInput(event: KeyboardEvent): void {
       </section>
 
       <section class="settings-section">
-        <h2>Process Mode</h2>
+        <h2>Process mode</h2>
         <div class="mode-card-grid">
           <button
             class="process-card"
@@ -154,11 +138,8 @@ function addRootFromInput(event: KeyboardEvent): void {
               ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.account" /></svg
             ></span>
             <span class="process-radio" aria-hidden="true"></span>
-            <strong>Standard Mode</strong>
-            <small
-              >Runs with standard user privileges. Safer, but cannot interact with elevated
-              apps.</small
-            >
+            <strong>Standard</strong>
+            <small>Runs with normal privileges. Safer, but can't reach elevated apps.</small>
           </button>
           <button
             class="process-card admin"
@@ -171,10 +152,8 @@ function addRootFromInput(event: KeyboardEvent): void {
               ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.shieldAccount" /></svg
             ></span>
             <span class="process-radio" aria-hidden="true"></span>
-            <strong>Administrative Mode</strong>
-            <small
-              >Requires UAC. Can interact with all applications, including elevated ones.</small
-            >
+            <strong>Administrator</strong>
+            <small>Requires UAC. Can launch and reach elevated apps.</small>
           </button>
           <small class="mode-message">{{
             elevationStatus?.message ?? "Checking process mode"
@@ -184,7 +163,7 @@ function addRootFromInput(event: KeyboardEvent): void {
 
       <section class="settings-section">
         <div class="settings-section-title-row">
-          <h2>Indexing</h2>
+          <h2>Indexed folders</h2>
           <div class="settings-section-actions">
             <button
               class="settings-link-button"
@@ -195,7 +174,17 @@ function addRootFromInput(event: KeyboardEvent): void {
               {{ scanning ? "Scanning" : "Scan" }}
             </button>
             <button class="settings-link-button" type="button" @click="$emit('browse-root')">
-              + Add Folder
+              Add
+            </button>
+            <button
+              class="settings-link-button"
+              :class="{ active: cfg.scanner.watch }"
+              type="button"
+              :aria-pressed="cfg.scanner.watch"
+              title="Automatically update the index on file changes"
+              @click="cfg.scanner.watch = !cfg.scanner.watch"
+            >
+              Watch
             </button>
           </div>
         </div>
@@ -209,34 +198,18 @@ function addRootFromInput(event: KeyboardEvent): void {
               <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.delete" /></svg>
             </button>
           </div>
-          <div class="root-add-row">
-            <input
-              v-model="rootDraft"
-              spellcheck="false"
-              placeholder="Folder path, /home/... or \\wsl.localhost\..."
-              @keydown.enter="addRootFromInput"
-            />
-            <button type="button" @click="$emit('add-root')">Add</button>
-          </div>
-          <label class="settings-toggle-row settings-card-row inset-row">
-            <span
-              ><span>Watch indexed folders</span
-              ><small>Automatically update index on file changes</small></span
-            >
-            <span class="modern-switch">
-              <input v-model="cfg.scanner.watch" type="checkbox" />
-              <span class="modern-switch-track" aria-hidden="true"></span>
-            </span>
-          </label>
+          <p v-if="!cfg.scanner.roots.length" class="root-empty-hint">
+            Add a folder to index your projects.
+          </p>
         </div>
       </section>
 
-      <section class="settings-section">
+      <section v-if="wslPresent" class="settings-section">
         <div class="settings-section-title-row">
           <h2>WSL folders</h2>
           <div class="settings-section-actions">
             <button class="settings-link-button" type="button" @click="$emit('browse-wsl-root')">
-              + Add WSL Folder
+              Add
             </button>
           </div>
         </div>
@@ -284,25 +257,10 @@ function addRootFromInput(event: KeyboardEvent): void {
           </label>
         </div>
       </section>
-
-      <section class="settings-section theme-json-section">
-        <h2>Theme JSON</h2>
-        <div class="theme-json-card">
-          <textarea v-model="themeDraft" spellcheck="false" />
-        </div>
-      </section>
     </main>
 
     <nav class="settings-bottom-bar">
-      <button type="button" @click="$emit('export-theme')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.export" /></svg>Export
-      </button>
-      <button type="button" @click="$emit('import-theme')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.import" /></svg>Import
-      </button>
-      <button type="button" @click="$emit('close')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.close" /></svg>Cancel
-      </button>
+      <button class="settings-text-button" type="button" @click="$emit('close')">Cancel</button>
       <button class="settings-save-button" type="button" @click="$emit('save')">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.check" /></svg>Save
       </button>

@@ -3,13 +3,11 @@ import { backend } from "./backend";
 import { errorMessage } from "./errors";
 import { consumeEvent } from "./hotkeys";
 import { keyComboFromEvent } from "./hotkeyRecorder";
-import { isTheme, themes } from "./themes";
-import type { ElevationMode, ElevationStatus, LynConfig, Theme, WailsApp, WSLRoot } from "./types";
-import type { ComputedRef, Ref } from "vue";
+import type { ElevationMode, ElevationStatus, LynConfig, WailsApp, WSLRoot } from "./types";
+import type { Ref } from "vue";
 
 export function useSettingsState(options: {
   cfg: Ref<LynConfig | null>;
-  activeTheme: ComputedRef<Theme>;
   status: Ref<string>;
   updateMatches: () => Promise<void>;
   cacheState: () => void;
@@ -17,8 +15,7 @@ export function useSettingsState(options: {
   api?: WailsApp;
 }) {
   const api = options.api ?? backend;
-  const rootDraft = ref("");
-  const themeDraft = ref("");
+  const wslDistros = ref<string[]>([]);
   const elevationStatus = ref<ElevationStatus | null>(null);
   const recordingHotkey = ref(false);
   const blurHideSuppressed = ref(false);
@@ -34,18 +31,16 @@ export function useSettingsState(options: {
     options.status.value = "Settings saved";
   }
 
-  function addRoot(path = rootDraft.value): void {
+  function addRoot(path: string): void {
     const cfg = options.cfg.value;
     if (!cfg) {
       return;
     }
     const root = path.trim();
     if (!root || cfg.scanner.roots.includes(root)) {
-      rootDraft.value = "";
       return;
     }
     cfg.scanner.roots.push(root);
-    rootDraft.value = "";
   }
 
   function removeRoot(index: number): void {
@@ -96,6 +91,14 @@ export function useSettingsState(options: {
     }
   }
 
+  async function loadWSLDistros(): Promise<void> {
+    try {
+      wslDistros.value = await api.WSLDistros();
+    } catch {
+      wslDistros.value = [];
+    }
+  }
+
   async function loadElevationStatus(): Promise<void> {
     try {
       elevationStatus.value = await api.ElevationStatus();
@@ -124,28 +127,6 @@ export function useSettingsState(options: {
       return;
     }
     cfg.ui.workspaceQueryShortcut = cfg.ui.workspaceQueryShortcut.trim().slice(0, 1) || "{";
-  }
-
-  function exportTheme(): void {
-    themeDraft.value = JSON.stringify(options.activeTheme.value, null, 2);
-  }
-
-  function importTheme(): void {
-    try {
-      const imported: unknown = JSON.parse(themeDraft.value);
-      if (!isTheme(imported)) {
-        options.status.value = "Theme JSON is missing required fields";
-        return;
-      }
-      const key = imported.name.toLowerCase().replaceAll(" ", "-");
-      themes[key] = imported;
-      if (options.cfg.value) {
-        options.cfg.value.ui.theme = key;
-      }
-      options.status.value = "Theme imported";
-    } catch {
-      options.status.value = "Theme JSON is invalid";
-    }
   }
 
   function startHotkeyRecording(): void {
@@ -182,19 +163,16 @@ export function useSettingsState(options: {
   }
 
   return {
-    rootDraft,
-    themeDraft,
+    wslDistros,
     elevationStatus,
     recordingHotkey,
     blurHideSuppressed,
-    addRoot,
     browseRoot,
     browseWSLRoot,
     removeWSLRoot,
     captureHotkey,
-    exportTheme,
-    importTheme,
     loadElevationStatus,
+    loadWSLDistros,
     normalizeWorkspaceShortcut,
     removeRoot,
     saveSettings,
