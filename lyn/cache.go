@@ -16,7 +16,7 @@ type Store struct {
 	db *sql.DB
 }
 
-const projectUpsertSQL = "INSERT INTO projects(path, name, kind, detected_at, updated_at, usage_count, last_launched_at) VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(path) DO UPDATE SET name=excluded.name, kind=excluded.kind, detected_at=excluded.detected_at, updated_at=excluded.updated_at"
+const projectUpsertSQL = "INSERT INTO projects(path, name, kind, distro, detected_at, updated_at, usage_count, last_launched_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(path) DO UPDATE SET name=excluded.name, kind=excluded.kind, distro=excluded.distro, detected_at=excluded.detected_at, updated_at=excluded.updated_at"
 
 func OpenStore(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -46,9 +46,11 @@ func (s *Store) migrate(ctx context.Context) error {
 		"CREATE TABLE IF NOT EXISTS projects (path TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, detected_at TEXT NOT NULL, updated_at TEXT NOT NULL)",
 		"ALTER TABLE projects ADD COLUMN usage_count INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE projects ADD COLUMN last_launched_at TEXT NOT NULL DEFAULT ''",
+		"ALTER TABLE projects ADD COLUMN distro TEXT NOT NULL DEFAULT ''",
 		"CREATE INDEX IF NOT EXISTS idx_projects_kind_name ON projects(kind, name)",
 		"CREATE INDEX IF NOT EXISTS idx_projects_usage ON projects(usage_count, last_launched_at)",
 		"DELETE FROM projects WHERE kind = 'system-command' OR path LIKE 'lyn:system:%'",
+		`DELETE FROM projects WHERE path LIKE '\\wsl%' AND distro = ''`,
 	}
 	for _, statement := range statements {
 		if _, err := s.db.ExecContext(ctx, statement); err != nil {
@@ -201,7 +203,7 @@ func insertSyncKinds(ctx context.Context, tx *sql.Tx, kinds []string) error {
 }
 
 func writeProject(ctx context.Context, stmt *sql.Stmt, project Project, updatedAt string) error {
-	_, err := stmt.ExecContext(ctx, project.Path, project.Name, project.Kind, formatTime(project.DetectedAt), updatedAt, project.UsageCount, formatTime(project.LastLaunchedAt))
+	_, err := stmt.ExecContext(ctx, project.Path, project.Name, project.Kind, project.Distro, formatTime(project.DetectedAt), updatedAt, project.UsageCount, formatTime(project.LastLaunchedAt))
 	return err
 }
 
@@ -215,7 +217,7 @@ func writeSyncPath(ctx context.Context, stmt *sql.Stmt, project Project, include
 }
 
 func (s *Store) ListProjects(ctx context.Context) ([]Project, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT name, path, kind, detected_at, usage_count, last_launched_at FROM projects ORDER BY usage_count DESC, last_launched_at DESC, updated_at DESC, name ASC")
+	rows, err := s.db.QueryContext(ctx, "SELECT name, path, kind, distro, detected_at, usage_count, last_launched_at FROM projects ORDER BY usage_count DESC, last_launched_at DESC, updated_at DESC, name ASC")
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +227,7 @@ func (s *Store) ListProjects(ctx context.Context) ([]Project, error) {
 		var item Project
 		var detectedAt string
 		var lastLaunchedAt string
-		if err := rows.Scan(&item.Name, &item.Path, &item.Kind, &detectedAt, &item.UsageCount, &lastLaunchedAt); err != nil {
+		if err := rows.Scan(&item.Name, &item.Path, &item.Kind, &item.Distro, &detectedAt, &item.UsageCount, &lastLaunchedAt); err != nil {
 			return nil, err
 		}
 		item.DetectedAt, _ = time.Parse(time.RFC3339Nano, detectedAt)

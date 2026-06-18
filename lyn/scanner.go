@@ -16,7 +16,7 @@ func ScanProjects(ctx context.Context, cfg ScannerConfig) ([]Project, []string, 
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
-	roots := expandRoots(cfg.Roots)
+	roots := append(expandRoots(cfg.Roots), wslScanRoots(cfg.WSLRoots)...)
 	limit := max(cfg.Concurrency, 1)
 	type job struct {
 		path  string
@@ -83,7 +83,7 @@ func ScanProjects(ctx context.Context, cfg ScannerConfig) ([]Project, []string, 
 		}
 		if err == nil {
 			if project, ok := DetectProject(root); ok {
-				seen.add(project)
+				seen.add(wslScannedProject(project))
 			}
 			continue
 		}
@@ -128,7 +128,7 @@ func visitPath(ctx context.Context, cfg ScannerConfig, path string, depth int, a
 	}
 	if project, ok := detectProjectDirEntries(path, entries); ok {
 		mu.Lock()
-		seen.add(project)
+		seen.add(wslScannedProject(project))
 		mu.Unlock()
 		return
 	}
@@ -143,7 +143,7 @@ func visitPath(ctx context.Context, cfg ScannerConfig, path string, depth int, a
 		if !entry.IsDir() {
 			if project, ok := DetectWorkspaceFile(child); ok {
 				mu.Lock()
-				seen.add(project)
+				seen.add(wslScannedProject(project))
 				mu.Unlock()
 			}
 			continue
@@ -224,6 +224,29 @@ func workspaceName(path string) string {
 
 func expandRoots(roots []string) []string {
 	return expandRootsForOS(roots, runtime.GOOS, wslPathToWindows)
+}
+
+func wslScanRoots(roots []WSLRoot) []string {
+	if len(roots) == 0 {
+		return nil
+	}
+	items := make([]string, 0, len(roots))
+	for _, root := range roots {
+		distro := resolveWSLDistro(root.Distro)
+		if distro == "" {
+			continue
+		}
+		items = append(items, wslWindowsRoot(distro, root.Path))
+	}
+	return items
+}
+
+func wslScannedProject(project Project) Project {
+	if distro, unix, ok := wslUnixFromUNC(project.Path); ok {
+		project.Path = unix
+		project.Distro = distro
+	}
+	return project
 }
 
 func expandRootsForOS(roots []string, goos string, convertWsl func(string) (string, bool)) []string {

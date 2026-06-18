@@ -4,7 +4,7 @@ import { errorMessage } from "./errors";
 import { consumeEvent } from "./hotkeys";
 import { keyComboFromEvent } from "./hotkeyRecorder";
 import { isTheme, themes } from "./themes";
-import type { ElevationMode, ElevationStatus, LynConfig, Theme, WailsApp } from "./types";
+import type { ElevationMode, ElevationStatus, LynConfig, Theme, WailsApp, WSLRoot } from "./types";
 import type { ComputedRef, Ref } from "vue";
 
 export function useSettingsState(options: {
@@ -59,6 +59,36 @@ export function useSettingsState(options: {
       if (root) {
         addRoot(root);
       }
+    } finally {
+      window.setTimeout(() => {
+        blurHideSuppressed.value = false;
+      }, 200);
+    }
+  }
+
+  function removeWSLRoot(index: number): void {
+    options.cfg.value?.scanner.wslRoots?.splice(index, 1);
+  }
+
+  async function browseWSLRoot(): Promise<void> {
+    const cfg = options.cfg.value;
+    if (!cfg) {
+      return;
+    }
+    blurHideSuppressed.value = true;
+    try {
+      const root = await api.ChooseWSLFolder();
+      if (root && root.path) {
+        const list = (cfg.scanner.wslRoots ??= []);
+        const exists = list.some(
+          (item: WSLRoot) => (item.distro ?? "") === (root.distro ?? "") && item.path === root.path,
+        );
+        if (!exists) {
+          list.push(root);
+        }
+      }
+    } catch (error) {
+      options.status.value = errorMessage(error, "Failed to add WSL folder");
     } finally {
       window.setTimeout(() => {
         blurHideSuppressed.value = false;
@@ -159,6 +189,8 @@ export function useSettingsState(options: {
     blurHideSuppressed,
     addRoot,
     browseRoot,
+    browseWSLRoot,
+    removeWSLRoot,
     captureHotkey,
     exportTheme,
     importTheme,

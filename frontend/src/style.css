@@ -685,6 +685,22 @@ small {
   stroke: currentColor;
   stroke-width: 1.8;
 }
+.root-distro {
+  flex: 0 0 auto;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--settings-panel-alt, rgba(255, 255, 255, 0.08));
+  color: var(--settings-muted, #9aa0a6);
+  font-size: 10px;
+  line-height: 14px;
+}
+.root-empty-hint {
+  margin: 0;
+  padding: 6px 4px;
+  color: var(--settings-muted, #9aa0a6);
+  font-size: 11px;
+}
 .root-row button {
   width: 32px;
   height: 32px;

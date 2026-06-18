@@ -2,6 +2,7 @@ package lyn
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -121,13 +122,15 @@ func (a *App) startFastRefresh() {
 	}
 	go func() {
 		a.debugLog("fast-refresh.begin")
-		_, err := a.RefreshProjects()
+		_, sourceError, err := a.rescan()
 		if err != nil {
 			a.debugLog("fast-refresh.error", "error", err)
 			logRuntimeError(ctx, err)
 			return
 		}
+		logRuntimeError(ctx, sourceError)
 		a.debugLog("fast-refresh.end")
+		runtime.EventsEmit(ctx, "projects-updated")
 	}()
 }
 
@@ -216,6 +219,11 @@ func (a *App) reactToConfigChange(loaded Config) {
 	}
 	if scannerChanged {
 		a.restartWatcher()
+		go func() {
+			_, sourceError, err := a.rescan()
+			logRuntimeError(ctx, firstError(err, sourceError))
+			runtime.EventsEmit(ctx, "projects-updated")
+		}()
 	}
 }
 
@@ -400,6 +408,30 @@ func (a *App) ChooseFolder() (string, error) {
 	a.setWindowAutoHideSuppressed(true)
 	defer a.setWindowAutoHideSuppressed(false)
 	return runtime.OpenDirectoryDialog(ctx, runtime.OpenDialogOptions{Title: "Add indexed folder"})
+}
+
+func (a *App) ChooseWSLFolder() (WSLRoot, error) {
+	ctx, _, _ := a.snapshot()
+	if ctx == nil {
+		return WSLRoot{}, nil
+	}
+	a.setWindowAutoHideSuppressed(true)
+	defer a.setWindowAutoHideSuppressed(false)
+	selected, err := runtime.OpenDirectoryDialog(ctx, runtime.OpenDialogOptions{Title: "Add WSL folder", DefaultDirectory: wslLocalhostPrefix})
+	if err != nil || strings.TrimSpace(selected) == "" {
+		return WSLRoot{}, err
+	}
+	distro, unix, ok := wslUnixFromUNC(selected)
+	if !ok {
+		a.debugLog("wsl.folder.invalid", "path", selected)
+		return WSLRoot{}, fmt.Errorf("%q is not a WSL folder under %s", selected, wslLocalhostPrefix)
+	}
+	a.debugLog("wsl.folder.added", "distro", distro, "path", unix)
+	return WSLRoot{Distro: distro, Path: unix}, nil
+}
+
+func (a *App) WSLDistros() []string {
+	return listWSLDistros()
 }
 
 func (a *App) Show() {

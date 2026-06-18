@@ -36,6 +36,26 @@ func TestBuildLaunchCommandWindowsWslCodeUsesRemote(t *testing.T) {
 	}
 }
 
+func TestBuildLaunchCommandWindowsWslCodeUsesNamedDistro(t *testing.T) {
+	cmd, err := BuildLaunchCommand(Request{Path: "/home/me/src/app", Action: "code", Distro: "Ubuntu"}, "windows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cmd.Args) != 3 || cmd.Args[1] != "wsl+Ubuntu" {
+		t.Fatalf("unexpected command %#v", cmd)
+	}
+}
+
+func TestBuildLaunchCommandWindowsWslTerminalUsesNamedDistro(t *testing.T) {
+	cmd, err := BuildLaunchCommand(Request{Path: "/home/me/src/app", Action: "terminal", Distro: "Ubuntu"}, "windows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cmd.Name != "wsl.exe" || len(cmd.Args) != 4 || cmd.Args[0] != "-d" || cmd.Args[1] != "Ubuntu" || cmd.Args[2] != "--cd" || cmd.Args[3] != "/home/me/src/app" {
+		t.Fatalf("unexpected command %#v", cmd)
+	}
+}
+
 func TestBuildLaunchCommandVSCodeRemoteSSHFolderUsesRemotePath(t *testing.T) {
 	path := "vscode-remote://ssh-remote+examplehost/srv/www/example"
 	cmd, err := BuildLaunchCommand(Request{Path: path, Action: "code"}, "windows")

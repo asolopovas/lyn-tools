@@ -23,9 +23,11 @@ const emit = defineEmits<{
   "export-theme": [];
   "import-theme": [];
   "browse-root": [];
+  "browse-wsl-root": [];
   "switch-elevation": [mode: ElevationMode];
   "add-root": [];
   "remove-root": [index: number];
+  "remove-wsl-root": [index: number];
   "normalize-workspace-shortcut": [];
   "toggle-hotkey-recording": [];
   "capture-hotkey": [event: KeyboardEvent];
@@ -217,6 +219,36 @@ function addRootFromInput(event: KeyboardEvent): void {
               <span class="modern-switch-track" aria-hidden="true"></span>
             </span>
           </label>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <div class="settings-section-title-row">
+          <h2>WSL folders</h2>
+          <div class="settings-section-actions">
+            <button class="settings-link-button" type="button" @click="$emit('browse-wsl-root')">
+              + Add WSL Folder
+            </button>
+          </div>
+        </div>
+        <div class="settings-card">
+          <div
+            v-for="(root, index) in cfg.scanner.wslRoots ?? []"
+            :key="(root.distro ?? '') + root.path"
+            class="root-row"
+          >
+            <span class="root-path"
+              ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.folder" /></svg
+              >{{ root.path
+              }}<small v-if="root.distro" class="root-distro">{{ root.distro }}</small></span
+            >
+            <button type="button" title="Remove folder" @click="$emit('remove-wsl-root', index)">
+              ⌫
+            </button>
+          </div>
+          <p v-if="!(cfg.scanner.wslRoots && cfg.scanner.wslRoots.length)" class="root-empty-hint">
+            Pick a folder from \\wsl.localhost; it is stored and shown as a Unix path.
+          </p>
         </div>
       </section>
 

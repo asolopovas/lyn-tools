@@ -85,6 +85,8 @@ const {
   blurHideSuppressed,
   addRoot,
   browseRoot,
+  browseWSLRoot,
+  removeWSLRoot,
   captureHotkey,
   exportTheme,
   importTheme,
@@ -380,9 +382,11 @@ onUnmounted(() => {
         @export-theme="exportTheme"
         @import-theme="importTheme"
         @browse-root="browseRoot"
+        @browse-wsl-root="browseWSLRoot"
         @switch-elevation="switchElevation"
         @add-root="addRoot()"
         @remove-root="removeRoot"
+        @remove-wsl-root="removeWSLRoot"
         @normalize-workspace-shortcut="normalizeWorkspaceShortcut"
         @toggle-hotkey-recording="toggleHotkeyRecording"
         @capture-hotkey="captureHotkey"

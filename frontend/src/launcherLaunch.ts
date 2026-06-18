@@ -33,7 +33,7 @@ export function useLauncherLaunch(options: {
     launchInFlight.value = true;
     void api.Debug("launch.request", `${action} ${project.kind} ${project.path}`);
     try {
-      const result = await api.Launch({ path: project.path, action });
+      const result = await api.Launch({ path: project.path, action, distro: project.distro });
       if (result.error) {
         options.status.value = result.error;
         return;
@@ -57,12 +57,13 @@ export function useLauncherLaunch(options: {
     const action =
       project && !options.settingsOpen.value ? actionForProject(project, "code") : "code";
     const path = project && !options.settingsOpen.value ? project.path : "";
+    const distro = project && !options.settingsOpen.value ? project.distro : undefined;
     const signature = `${action}\u0000${path}`;
     if (signature === nativeSelectionSignature) {
       return;
     }
     nativeSelectionSignature = signature;
-    void api.SetLaunchSelection({ path, action });
+    void api.SetLaunchSelection({ path, action, distro });
   }
 
   function launchSelected(action: ProjectAction): void {

@@ -2,6 +2,7 @@ export type Project = {
   name: string;
   path: string;
   kind: string;
+  distro?: string;
   displayName?: string;
   detectedAt: string;
   usageCount: number;
@@ -19,6 +20,12 @@ export type ProjectAction = LaunchAction | "reveal" | "run-admin" | "run-user";
 export type LaunchRequest = {
   path: string;
   action: ProjectAction;
+  distro?: string | undefined;
+};
+
+export type WSLRoot = {
+  distro?: string;
+  path: string;
 };
 
 export type LaunchResult = {
@@ -59,6 +66,7 @@ export type LynConfig = {
   };
   scanner: {
     roots: string[];
+    wslRoots?: WSLRoot[];
     maxDepth: number;
     concurrency: number;
     timeout: string;
@@ -96,6 +104,8 @@ export type WailsApp = {
   SetLaunchSelection: (req: LaunchRequest) => Promise<void>;
   Debug: (stage: string, detail: string) => Promise<void>;
   ChooseFolder: () => Promise<string>;
+  ChooseWSLFolder: () => Promise<WSLRoot>;
+  WSLDistros: () => Promise<string[]>;
   ElevationStatus: () => Promise<ElevationStatus>;
   SwitchElevation: (mode: ElevationMode) => Promise<ElevationStatus>;
   Hide: () => Promise<void>;

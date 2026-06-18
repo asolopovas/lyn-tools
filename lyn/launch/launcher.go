@@ -14,6 +14,7 @@ import (
 type Request struct {
 	Path   string `json:"path"`
 	Action string `json:"action"`
+	Distro string `json:"distro,omitempty"`
 }
 
 type Result struct {
@@ -55,18 +56,32 @@ func BuildLaunchCommand(req Request, goos string) (launchCommand, error) {
 	}
 	switch action {
 	case "code":
-		return codeCommand(path, goos), nil
+		return codeCommand(path, req.Distro, goos), nil
 	case "open":
-		return openCommand(path, goos), nil
+		return openCommand(path, req.Distro, goos), nil
 	case "reveal":
-		return revealCommand(path, goos), nil
+		return revealCommand(path, req.Distro, goos), nil
 	case "run-admin", "run-user":
 		return elevatedCommand(path, goos, action)
 	case "terminal":
-		return terminalCommand(path, goos), nil
+		return terminalCommand(path, req.Distro, goos), nil
 	default:
 		return launchCommand{}, errors.New("unsupported launch action")
 	}
+}
+
+func wslArgs(distro string, rest ...string) []string {
+	if d := strings.TrimSpace(distro); d != "" {
+		return append([]string{"-d", d}, rest...)
+	}
+	return rest
+}
+
+func wslRemote(distro string) string {
+	if d := strings.TrimSpace(distro); d != "" {
+		return "wsl+" + d
+	}
+	return "wsl+default"
 }
 
 func NormalizedAction(action string) string {
@@ -77,7 +92,7 @@ func NormalizedAction(action string) string {
 	return value
 }
 
-func codeCommand(path string, goos string) launchCommand {
+func codeCommand(path string, distro string, goos string) launchCommand {
 	name := "code"
 	if goos == "windows" {
 		name = windowsCodeCommandName()
@@ -93,7 +108,7 @@ func codeCommand(path string, goos string) launchCommand {
 		return launchCommand{Name: name, Args: []string{flag, path}}
 	}
 	if goos == "windows" && isUnixPath(path) {
-		return launchCommand{Name: name, Args: []string{"--remote", "wsl+default", path}}
+		return launchCommand{Name: name, Args: []string{"--remote", wslRemote(distro), path}}
 	}
 	return launchCommand{Name: name, Args: []string{path}}
 }
@@ -131,11 +146,11 @@ func isWindowsPackagedAppPath(path string) bool {
 	return strings.HasPrefix(path, `shell:AppsFolder\`)
 }
 
-func openCommand(path string, goos string) launchCommand {
+func openCommand(path string, distro string, goos string) launchCommand {
 	switch goos {
 	case "windows":
 		if isUnixPath(path) {
-			return launchCommand{Name: "wsl.exe", Args: []string{"sh", "-lc", "explorer.exe \"$(wslpath -w \"$1\")\"", "sh", path}}
+			return launchCommand{Name: "wsl.exe", Args: wslArgs(distro, "sh", "-lc", "explorer.exe \"$(wslpath -w \"$1\")\"", "sh", path)}
 		}
 		if isWindowsAppShortcut(path) {
 			return launchCommand{Name: "rundll32.exe", Args: []string{"url.dll,FileProtocolHandler", path}}
@@ -151,11 +166,11 @@ func openCommand(path string, goos string) launchCommand {
 	}
 }
 
-func revealCommand(path string, goos string) launchCommand {
+func revealCommand(path string, distro string, goos string) launchCommand {
 	switch goos {
 	case "windows":
 		if isUnixPath(path) {
-			return launchCommand{Name: "wsl.exe", Args: []string{"sh", "-lc", "explorer.exe \"$(wslpath -w \"$(dirname \"$1\")\")\"", "sh", path}}
+			return launchCommand{Name: "wsl.exe", Args: wslArgs(distro, "sh", "-lc", "explorer.exe \"$(wslpath -w \"$(dirname \"$1\")\")\"", "sh", path)}
 		}
 		return launchCommand{Name: "explorer.exe", Args: []string{containingLocation(path, goos)}}
 	case "darwin":
@@ -193,12 +208,12 @@ func elevatedCommand(path string, goos string, action string) (launchCommand, er
 	return launchCommand{Name: "ShellExecuteW", Args: []string{verb, path}}, nil
 }
 
-func terminalCommand(path string, goos string) launchCommand {
+func terminalCommand(path string, distro string, goos string) launchCommand {
 	dir := terminalWorkingDirectory(path, goos)
 	switch goos {
 	case "windows":
 		if isUnixPath(dir) {
-			return launchCommand{Name: "wsl.exe", Args: []string{"--cd", dir}}
+			return launchCommand{Name: "wsl.exe", Args: wslArgs(distro, "--cd", dir)}
 		}
 		return launchCommand{Name: "wt.exe", Args: []string{"-d", dir}}
 	case "darwin":
