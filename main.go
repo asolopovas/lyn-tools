@@ -16,6 +16,7 @@ import (
 func main() {
 	debug := lyn.NewDebugLogger(os.Args[1:])
 	initialConfig, configErr := lyn.LoadConfig("")
+	setupCrashLog(initialConfig.Cache.Dir)
 	mode := windowModeFromArgs(os.Args[1:])
 	if mode != lyn.SettingsWindowMode && startHiddenArg(os.Args[1:]) {
 		initialConfig.Startup.Enabled = true
