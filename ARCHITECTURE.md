@@ -39,6 +39,7 @@ Lyn is a Wails desktop launcher for projects, apps, VS Code recents, and workspa
 - Components render panels; small modules own backend access, cache, themes, icons, types, hotkeys, and launch actions.
 - Keyboard mappings live in `frontend/src/hotkeys.ts` and are reused by input and window handlers.
 - Local storage is only a warm UI cache, never search or ranking truth.
+- The launcher panel height is `min(<configured>px, 100vh)` (`width: 100%`) so it never exceeds the live viewport, and the results list owns its own scroll (`overflow-y: auto`). Under a fractional display scale (e.g. `GDK_DPI_SCALE=1.25`) WebKitGTK locks the CSS viewport to the window's creation size divided by the scale (a 640x306 window yields a ~510x243 viewport) and `DisableResize` keeps later `WindowSetSize` calls from changing that viewport, so a fixed `306px` panel overflowed the shorter viewport and clipped the bottom rows. Capping to `100vh` keeps every row reachable by scrolling and makes the rendered app match the window, while the unscaled `<configured>px` still applies under the larger viewport the Playwright suite runs in. `overflow-y: overlay` must not be used: WebKitGTK treats it as `visible` (no scrolling) even though Blink aliases it to `auto`.
 
 ## Platform
 

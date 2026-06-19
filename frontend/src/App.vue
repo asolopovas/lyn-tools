@@ -360,7 +360,10 @@ onUnmounted(() => {
       v-if="appReady"
       class="launcher"
       :class="{ 'settings-window': settingsOpen }"
-      :style="{ width: '100%', height: `${launcherHeight}px` }"
+      :style="{
+        width: '100%',
+        height: settingsOpen ? `${launcherHeight}px` : `min(${launcherHeight}px, 100vh)`,
+      }"
     >
       <SettingsPanel
         v-if="settingsOpen && cfg"

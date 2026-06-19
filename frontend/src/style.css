@@ -131,7 +131,7 @@ ul {
   padding: 0;
   height: calc(100% - 62px);
   overflow-x: hidden;
-  overflow-y: overlay;
+  overflow-y: auto;
   scrollbar-color: color-mix(in srgb, var(--lyn-text) 18%, transparent) transparent;
   scrollbar-width: thin;
 }
