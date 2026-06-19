@@ -57,7 +57,7 @@ func TestWailsOptionsSettingsWindow(t *testing.T) {
 	if options.AlwaysOnTop {
 		t.Fatal("expected settings window to not be always on top")
 	}
-	if options.Width != 640 || options.Height != 720 {
+	if options.Width != 760 || options.Height != 660 {
 		t.Fatalf("unexpected settings size %dx%d", options.Width, options.Height)
 	}
 }

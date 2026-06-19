@@ -20,8 +20,8 @@ import { useLauncherState } from "./launcherState";
 import { useSettingsState } from "./settingsState";
 import { themeByKey, themes } from "./themes";
 const launcherWidth = 640;
-const settingsWidth = 640;
-const settingsHeight = 720;
+const settingsWidth = 760;
+const settingsHeight = 660;
 const api = backend;
 const launcher = useLauncherState(api);
 const {
@@ -47,6 +47,7 @@ const {
   moveSelection,
 } = launcher;
 const appReady = ref(false);
+const platform = ref("");
 const windowMode = ref<"launcher" | "settings">("launcher");
 const settingsOpen = ref(false);
 const settingsWindow = computed(() => windowMode.value === "settings");
@@ -305,6 +306,7 @@ function onKeydown(event: KeyboardEvent): void {
 onMounted(() => {
   void (async () => {
     windowMode.value = await api.WindowMode();
+    platform.value = await api.Platform();
     settingsOpen.value = settingsWindow.value;
     if (settingsWindow.value) {
       await loadConfigOnly();
@@ -362,7 +364,7 @@ onUnmounted(() => {
       :class="{ 'settings-window': settingsOpen }"
       :style="{
         width: '100%',
-        height: settingsOpen ? `${launcherHeight}px` : `min(${launcherHeight}px, 100vh)`,
+        height: `min(${launcherHeight}px, 100vh)`,
       }"
     >
       <SettingsPanel
@@ -370,6 +372,7 @@ onUnmounted(() => {
         v-model:cfg="cfg"
         :theme-keys="themeKeys"
         :scanning="scanning"
+        :platform="platform"
         :wsl-present="wslPresent"
         :elevation-status="elevationStatus"
         :recording-hotkey="recordingHotkey"

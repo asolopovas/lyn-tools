@@ -102,6 +102,7 @@ async function installWailsMocks(page: Page): Promise<void> {
         go: {
           main: {
             App: {
+              Platform: async () => "linux",
               Config: async () => config,
               SaveConfig: async (next: unknown) => next,
               Projects: async () => projects,

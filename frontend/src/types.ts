@@ -92,7 +92,10 @@ export type CachedLauncherState = {
   projectIcons: Record<string, string>;
 };
 
+export type Platform = "windows" | "darwin" | "linux" | string;
+
 export type WailsApp = {
+  Platform: () => Promise<Platform>;
   Config: () => Promise<LynConfig>;
   SaveConfig: (cfg: LynConfig) => Promise<LynConfig>;
   Projects: () => Promise<Project[]>;

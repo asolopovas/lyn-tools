@@ -70,10 +70,10 @@ func newWailsOptions(app *lyn.App) *options.App {
 	}
 	if app.WindowMode() == string(lyn.SettingsWindowMode) {
 		appOptions.Title = "Lyn Settings"
-		appOptions.Width = 640
-		appOptions.Height = 720
-		appOptions.MinWidth = 560
-		appOptions.MinHeight = 560
+		appOptions.Width = 760
+		appOptions.Height = 660
+		appOptions.MinWidth = 520
+		appOptions.MinHeight = 440
 		appOptions.DisableResize = false
 		appOptions.AlwaysOnTop = false
 		appOptions.BackgroundColour = &options.RGBA{R: 19, G: 19, B: 19, A: 255}

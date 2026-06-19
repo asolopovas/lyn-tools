@@ -277,7 +277,7 @@ small {
   max-height: 100%;
   overflow: hidden;
   display: grid;
-  grid-template-rows: 64px 1fr auto;
+  grid-template-rows: 48px 1fr auto;
   box-sizing: border-box;
   background: var(--m3-surface);
   color: var(--m3-on-surface);
@@ -298,17 +298,17 @@ small {
   min-width: 0;
 }
 .settings-brand-icon {
-  width: 22px;
-  height: 22px;
+  width: 19px;
+  height: 19px;
   fill: var(--m3-accent);
 }
 .settings-brand h1 {
   margin: 0;
   overflow: hidden;
   color: var(--m3-on-surface);
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 600;
-  line-height: 28px;
+  line-height: 24px;
   letter-spacing: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -316,8 +316,8 @@ small {
 .settings-icon-button {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -326,8 +326,8 @@ small {
   transition: background 140ms ease;
 }
 .settings-icon-button svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   fill: currentColor;
 }
 .settings-icon-button:hover {
@@ -335,19 +335,27 @@ small {
   color: var(--m3-on-surface);
 }
 .settings-content {
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 26px;
-  padding: 8px 20px 28px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: start;
+  gap: 18px;
+  padding: 12px 18px 14px;
   scrollbar-color: var(--m3-outline-strong) transparent;
   scrollbar-width: thin;
+}
+.settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
 }
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 .settings-section h2,
 .settings-section-title-row h2 {
@@ -374,25 +382,25 @@ small {
   display: flex;
   flex-direction: column;
   border: 0;
-  border-radius: 20px;
+  border-radius: 14px;
   background: var(--m3-surface-container);
 }
 .settings-card-row {
   position: relative;
-  padding: 16px 18px;
+  padding: 11px 14px;
 }
 .settings-card-row:not(:last-child)::after {
   position: absolute;
-  right: 18px;
+  right: 14px;
   bottom: 0;
-  left: 18px;
+  left: 14px;
   height: 1px;
   background: var(--m3-outline);
   content: "";
 }
 .settings-field {
   display: grid;
-  gap: 10px;
+  gap: 7px;
   color: var(--m3-on-surface-variant);
   font-size: 13px;
   font-weight: 500;
@@ -407,10 +415,10 @@ small {
 .settings-field input:not([type="range"]):not([type="color"]),
 .workspace-trigger-row input {
   border: 1px solid var(--m3-outline-strong);
-  border-radius: 10px;
+  border-radius: 9px;
   background: var(--m3-surface-container-high);
   color: var(--m3-on-surface);
-  padding: 10px 12px;
+  padding: 8px 11px;
 }
 .settings-field select {
   appearance: none;
@@ -449,16 +457,16 @@ small {
   padding: 0;
 }
 .settings-field input[type="range"]::-webkit-slider-runnable-track {
-  height: 6px;
+  height: 5px;
   border-radius: 999px;
   background: var(--m3-surface-container-highest);
 }
 .settings-field input[type="range"]::-webkit-slider-thumb {
   appearance: none;
-  width: 18px;
-  height: 18px;
-  margin-top: -6px;
-  border: 3px solid var(--m3-surface-container);
+  width: 14px;
+  height: 14px;
+  margin-top: -4.5px;
+  border: 2px solid var(--m3-surface-container);
   border-radius: 50%;
   background: var(--m3-accent);
 }
@@ -467,12 +475,12 @@ small {
   align-items: center;
 }
 .settings-field input[type="color"] {
-  width: 48px;
-  height: 34px;
+  width: 40px;
+  height: 26px;
   border: 1px solid var(--m3-outline-strong);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--m3-surface-container-high);
-  padding: 4px;
+  padding: 3px;
 }
 .settings-field input[type="color"]:focus {
   border-color: var(--m3-accent);
@@ -493,8 +501,8 @@ small {
 .modern-switch {
   position: relative;
   flex: 0 0 auto;
-  width: 52px;
-  height: 32px;
+  width: 40px;
+  height: 24px;
 }
 .modern-switch input {
   position: absolute;
@@ -515,10 +523,10 @@ small {
 }
 .modern-switch-track::after {
   position: absolute;
-  top: 7px;
-  left: 7px;
-  width: 14px;
-  height: 14px;
+  top: 5px;
+  left: 5px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: var(--m3-on-surface-variant);
   content: "";
@@ -535,11 +543,11 @@ small {
   border-color: var(--m3-accent);
 }
 .modern-switch input:checked + .modern-switch-track::after {
-  top: 4px;
-  left: 4px;
-  width: 20px;
-  height: 20px;
-  transform: translateX(20px);
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  transform: translateX(16px);
   background: var(--m3-on-accent);
 }
 .modern-switch input:disabled + .modern-switch-track {
@@ -551,20 +559,20 @@ small {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 60px;
+  min-height: 42px;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: var(--m3-on-surface);
-  padding: 0 18px;
+  padding: 0 14px;
   text-align: left;
   transition: background 140ms ease;
 }
 .settings-action-row:not(:last-child)::after {
   position: absolute;
-  right: 18px;
+  right: 14px;
   bottom: 0;
-  left: 18px;
+  left: 14px;
   height: 1px;
   background: var(--m3-outline);
   content: "";
@@ -596,10 +604,10 @@ small {
 .settings-action-row code {
   flex: 0 0 auto;
   border: 0;
-  border-radius: 8px;
+  border-radius: 7px;
   background: var(--m3-surface-container-highest);
   color: var(--m3-on-surface);
-  padding: 6px 12px;
+  padding: 5px 10px;
 }
 .workspace-trigger-row input {
   width: 56px;
@@ -613,13 +621,13 @@ small {
 .process-card {
   position: relative;
   display: grid;
-  gap: 6px;
-  min-height: 116px;
+  gap: 4px;
+  min-height: 92px;
   border: 1px solid var(--m3-outline);
-  border-radius: 20px;
+  border-radius: 14px;
   background: var(--m3-surface-container);
   color: var(--m3-on-surface);
-  padding: 16px 46px 16px 16px;
+  padding: 12px 40px 12px 14px;
   text-align: left;
   transition:
     background 140ms ease,
@@ -686,9 +694,9 @@ small {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 64px;
-  height: 34px;
-  padding: 0 16px;
+  min-width: 54px;
+  height: 28px;
+  padding: 0 14px;
   border: 1px solid var(--m3-outline-strong);
   border-radius: 999px;
   background: transparent;
@@ -715,10 +723,10 @@ small {
   display: inline-flex;
   align-self: flex-end;
   align-items: center;
-  gap: 8px;
-  height: 36px;
+  gap: 7px;
+  height: 30px;
   margin-top: 2px;
-  padding: 0 18px 0 14px;
+  padding: 0 16px 0 12px;
   border: 1px solid var(--m3-outline-strong);
   border-radius: 999px;
   background: transparent;
@@ -744,15 +752,15 @@ small {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 60px;
-  padding: 0 12px 0 18px;
+  min-height: 46px;
+  padding: 0 8px 0 14px;
   transition: background 140ms ease;
 }
 .root-row:not(:last-child)::after {
   position: absolute;
-  right: 18px;
+  right: 14px;
   bottom: 0;
-  left: 18px;
+  left: 14px;
   height: 1px;
   background: var(--m3-outline);
   content: "";
@@ -796,8 +804,8 @@ small {
   font-size: 13px;
 }
 .root-row button {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -820,24 +828,25 @@ small {
   justify-content: flex-end;
   gap: 8px;
   background: var(--m3-surface);
-  padding: 14px 20px 18px;
+  border-top: 1px solid var(--m3-outline);
+  padding: 10px 16px 12px;
 }
 .settings-bottom-bar button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 40px;
+  gap: 7px;
+  height: 32px;
   border: 0;
   border-radius: 999px;
-  padding: 0 24px;
-  font-size: 14px;
+  padding: 0 18px;
+  font-size: 13px;
   font-weight: 600;
   transition: background 140ms ease;
 }
 .settings-bottom-bar button svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   fill: currentColor;
 }
 .settings-text-button {

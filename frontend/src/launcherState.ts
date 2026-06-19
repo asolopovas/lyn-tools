@@ -121,7 +121,9 @@ export function useLauncherState(api: WailsApp = backend) {
     try {
       const result = await api.Scan();
       status.value = result.error ? result.error : `Indexed ${result.count} projects`;
-      await refresh();
+      projects.value = await api.Projects();
+      await updateMatches();
+      cacheState();
     } catch (error) {
       status.value = errorMessage(error, "Scan failed");
     } finally {

@@ -17,6 +17,7 @@ function appBinding(): WailsApp {
 }
 
 export const backend: WailsApp = {
+  Platform: () => appBinding().Platform(),
   Config: () => appBinding().Config(),
   SaveConfig: (cfg) => appBinding().SaveConfig(cfg),
   Projects: () => appBinding().Projects(),
