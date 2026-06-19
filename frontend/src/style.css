@@ -202,11 +202,6 @@ li.selected .result-action-button {
   height: 26px;
   object-fit: contain;
 }
-.system-command-icon {
-  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets", sans-serif;
-  font-size: 22px;
-  line-height: 1;
-}
 .project-copy {
   min-width: 0;
   display: grid;
@@ -246,10 +241,10 @@ small {
   color: var(--lyn-muted);
   padding: 0;
 }
-.result-action-button span {
-  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets", sans-serif;
-  font-size: 15px;
-  line-height: 1;
+.result-action-button svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
 }
 .result-action-button:hover {
   border-color: transparent;

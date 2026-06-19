@@ -2,7 +2,7 @@
 import { consumeEvent } from "../hotkeys";
 import { icons } from "../icons";
 import { detail, title } from "../projectUtils";
-import { actionButtons, isSystemCommand, systemCommandGlyph } from "../resultActions";
+import { actionButtons, isSystemCommand, systemCommandIcon } from "../resultActions";
 import type { Project, ProjectAction } from "../types";
 
 const props = defineProps<{
@@ -26,9 +26,9 @@ function launchResult(event: PointerEvent): void {
 <template>
   <li :class="{ selected }" @pointermove="emit('select')" @pointerdown="launchResult">
     <div class="project-icon" aria-hidden="true">
-      <span v-if="isSystemCommand(project)" class="system-command-icon">{{
-        systemCommandGlyph(project)
-      }}</span>
+      <svg v-if="isSystemCommand(project)" viewBox="0 0 24 24">
+        <path :d="icons[systemCommandIcon(project)]" />
+      </svg>
       <img v-else-if="icon" :src="icon" alt="" />
       <svg v-else viewBox="0 0 24 24"><path :d="icons.folder" /></svg>
     </div>
@@ -45,7 +45,7 @@ function launchResult(event: PointerEvent): void {
         :title="button.title"
         @click="emit('action', project, button.action)"
       >
-        <span aria-hidden="true">{{ button.glyph }}</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons[button.icon]" /></svg>
       </button>
     </div>
   </li>

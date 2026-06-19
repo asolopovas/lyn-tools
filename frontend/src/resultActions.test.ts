@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionButtons, isSystemCommand, systemCommandGlyph } from "./resultActions";
+import { actionButtons, isSystemCommand, systemCommandIcon } from "./resultActions";
 import type { Project } from "./types";
 
 function project(kind: string, path = `C:/${kind}`): Project {
@@ -30,16 +30,18 @@ describe("result actions", () => {
       "terminal",
     ]);
     expect(actionButtons(project("app", "shell:AppsFolder\\WhatsApp!App"))).toEqual([
-      { action: "open", glyph: "\uE8A7", title: "Open app (Enter)" },
+      { action: "open", icon: "openInNew", title: "Open app (Enter)" },
     ]);
   });
 
-  it("uses system command glyphs", () => {
+  it("uses system command icons", () => {
     const restart = project("system-command", "lyn:system:restart");
     expect(isSystemCommand(restart)).toBe(true);
-    expect(systemCommandGlyph(restart)).toBe("\uE777");
+    expect(systemCommandIcon(restart)).toBe("restart");
+    expect(systemCommandIcon(project("system-command", "lyn:system:shutdown"))).toBe("power");
+    expect(systemCommandIcon(project("system-command", "lyn:system:logout"))).toBe("logout");
     expect(actionButtons(restart)).toEqual([
-      { action: "open", glyph: "\uE777", title: "Run system command (Enter)" },
+      { action: "open", icon: "restart", title: "Run system command (Enter)" },
     ]);
   });
 });
