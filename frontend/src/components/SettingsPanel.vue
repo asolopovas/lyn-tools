@@ -114,7 +114,7 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
               <span class="settings-row-label"
                 ><span class="settings-symbol"
                   ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.grid" /></svg></span
-                >Workspace filter key</span
+                >Workspace key</span
               >
               <input
                 v-model="cfg.ui.workspaceQueryShortcut"

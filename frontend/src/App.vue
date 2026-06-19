@@ -20,8 +20,8 @@ import { useLauncherState } from "./launcherState";
 import { useSettingsState } from "./settingsState";
 import { themeByKey, themes } from "./themes";
 const launcherWidth = 640;
-const settingsWidth = 760;
-const settingsHeight = 660;
+const settingsWidth = 720;
+const settingsHeight = 650;
 const api = backend;
 const launcher = useLauncherState(api);
 const {

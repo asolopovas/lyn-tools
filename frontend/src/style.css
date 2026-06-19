@@ -1,8 +1,25 @@
+@font-face {
+  font-family: "Roboto Flex";
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url("./fonts/roboto-flex-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Roboto Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/roboto-mono-latin.woff2") format("woff2");
+}
 :root {
-  font-family: "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
+  --m3-font-sans: "Roboto Flex", "Roboto", ui-sans-serif, system-ui, sans-serif;
+  --m3-font-mono: "Roboto Mono", ui-monospace, "Cascadia Code", monospace;
+  font-family: var(--m3-font-sans);
   color: var(--lyn-text);
   background: transparent;
   font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 body {
@@ -281,7 +298,8 @@ small {
   box-sizing: border-box;
   background: var(--m3-surface);
   color: var(--m3-on-surface);
-  font-family: Inter, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--m3-font-sans);
+  font-optical-sizing: auto;
 }
 .settings-topbar {
   --wails-draggable: drag;
@@ -289,7 +307,7 @@ small {
   align-items: center;
   justify-content: space-between;
   background: var(--m3-surface);
-  padding: 0 12px 0 20px;
+  padding: 0 8px 0 16px;
 }
 .settings-brand {
   display: flex;
@@ -298,8 +316,8 @@ small {
   min-width: 0;
 }
 .settings-brand-icon {
-  width: 19px;
-  height: 19px;
+  width: 20px;
+  height: 20px;
   fill: var(--m3-accent);
 }
 .settings-brand h1 {
@@ -307,7 +325,7 @@ small {
   overflow: hidden;
   color: var(--m3-on-surface);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 24px;
   letter-spacing: 0;
   text-overflow: ellipsis;
@@ -316,8 +334,8 @@ small {
 .settings-icon-button {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -341,8 +359,8 @@ small {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   align-items: start;
-  gap: 18px;
-  padding: 12px 18px 14px;
+  gap: 16px;
+  padding: 10px 16px 14px;
   scrollbar-color: var(--m3-outline-strong) transparent;
   scrollbar-width: thin;
 }
@@ -355,16 +373,16 @@ small {
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .settings-section h2,
 .settings-section-title-row h2 {
   margin: 0 0 0 4px;
   color: var(--m3-accent);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 18px;
-  letter-spacing: 0.01em;
+  line-height: 16px;
+  letter-spacing: 0.4px;
 }
 .settings-section-title-row {
   display: flex;
@@ -387,7 +405,7 @@ small {
 }
 .settings-card-row {
   position: relative;
-  padding: 11px 14px;
+  padding: 10px 14px;
 }
 .settings-card-row:not(:last-child)::after {
   position: absolute;
@@ -400,29 +418,36 @@ small {
 }
 .settings-field {
   display: grid;
-  gap: 7px;
+  gap: 6px;
   color: var(--m3-on-surface-variant);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 400;
   line-height: 16px;
+  letter-spacing: 0.4px;
 }
 .settings-field > span:first-child {
   color: var(--m3-on-surface);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
+  line-height: 18px;
+  letter-spacing: 0.1px;
 }
 .settings-field select,
 .settings-field input:not([type="range"]):not([type="color"]),
 .workspace-trigger-row input {
+  height: 36px;
   border: 1px solid var(--m3-outline-strong);
-  border-radius: 9px;
+  border-radius: 8px;
   background: var(--m3-surface-container-high);
   color: var(--m3-on-surface);
-  padding: 8px 11px;
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: 0.1px;
+  padding: 0 12px;
 }
 .settings-field select {
   appearance: none;
-  padding-right: 38px;
+  padding-right: 36px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23a8a8a8' d='M7.4 9.6 12 14.2l4.6-4.6 1.4 1.4-6 6-6-6z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
@@ -443,10 +468,11 @@ small {
 .settings-row-title code,
 .settings-action-row code,
 .workspace-trigger-row input {
-  font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
-  font-size: 13px;
+  font-family: var(--m3-font-mono);
+  font-size: 12px;
   font-weight: 400;
   line-height: 16px;
+  letter-spacing: 0;
 }
 .settings-field input[type="range"] {
   width: 100%;
@@ -457,7 +483,7 @@ small {
   padding: 0;
 }
 .settings-field input[type="range"]::-webkit-slider-runnable-track {
-  height: 5px;
+  height: 4px;
   border-radius: 999px;
   background: var(--m3-surface-container-highest);
 }
@@ -465,7 +491,7 @@ small {
   appearance: none;
   width: 14px;
   height: 14px;
-  margin-top: -4.5px;
+  margin-top: -5px;
   border: 2px solid var(--m3-surface-container);
   border-radius: 50%;
   background: var(--m3-accent);
@@ -490,19 +516,20 @@ small {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  min-height: 28px;
+  gap: 12px;
+  min-height: 20px;
   color: var(--m3-on-surface);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
-  line-height: 20px;
+  line-height: 18px;
+  letter-spacing: 0.1px;
 }
 .modern-switch {
   position: relative;
   flex: 0 0 auto;
-  width: 40px;
-  height: 24px;
+  width: 36px;
+  height: 20px;
 }
 .modern-switch input {
   position: absolute;
@@ -523,10 +550,10 @@ small {
 }
 .modern-switch-track::after {
   position: absolute;
-  top: 5px;
-  left: 5px;
-  width: 10px;
-  height: 10px;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--m3-on-surface-variant);
   content: "";
@@ -543,15 +570,15 @@ small {
   border-color: var(--m3-accent);
 }
 .modern-switch input:checked + .modern-switch-track::after {
-  top: 2px;
-  left: 2px;
+  top: 0;
+  left: 0;
   width: 16px;
   height: 16px;
   transform: translateX(16px);
   background: var(--m3-on-accent);
 }
 .modern-switch input:disabled + .modern-switch-track {
-  opacity: 0.45;
+  opacity: 0.38;
 }
 .settings-action-row {
   position: relative;
@@ -559,7 +586,7 @@ small {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 42px;
+  min-height: 44px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -587,10 +614,12 @@ small {
 .settings-row-label {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: 0.1px;
 }
 .settings-symbol {
   display: inline-flex;
@@ -604,7 +633,7 @@ small {
 .settings-action-row code {
   flex: 0 0 auto;
   border: 0;
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--m3-surface-container-highest);
   color: var(--m3-on-surface);
   padding: 5px 10px;
@@ -694,15 +723,15 @@ small {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 54px;
-  height: 28px;
-  padding: 0 14px;
+  height: 32px;
+  padding: 0 16px;
   border: 1px solid var(--m3-outline-strong);
   border-radius: 999px;
   background: transparent;
   color: var(--m3-accent);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: 0.1px;
   transition:
     background 140ms ease,
     border-color 140ms ease;
@@ -717,29 +746,30 @@ small {
   color: var(--m3-on-accent);
 }
 .settings-link-button:disabled {
-  opacity: 0.45;
+  opacity: 0.38;
 }
 .settings-add-button {
   display: inline-flex;
   align-self: flex-end;
   align-items: center;
-  gap: 7px;
-  height: 30px;
+  gap: 8px;
+  height: 32px;
   margin-top: 2px;
-  padding: 0 16px 0 12px;
+  padding: 0 18px 0 14px;
   border: 1px solid var(--m3-outline-strong);
   border-radius: 999px;
   background: transparent;
   color: var(--m3-accent);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: 0.1px;
   transition:
     background 140ms ease,
     border-color 140ms ease;
 }
 .settings-add-button svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   fill: currentColor;
 }
 .settings-add-button:hover {
@@ -752,8 +782,8 @@ small {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 46px;
-  padding: 0 8px 0 14px;
+  min-height: 44px;
+  padding: 0 6px 0 14px;
   transition: background 140ms ease;
 }
 .root-row:not(:last-child)::after {
@@ -772,7 +802,7 @@ small {
   gap: 12px;
   min-width: 0;
   color: var(--m3-on-surface);
-  font-family: "JetBrains Mono", "Cascadia Code", ui-monospace, monospace;
+  font-family: var(--m3-font-mono);
   font-size: 12px;
   font-weight: 400;
   line-height: 16px;
@@ -799,9 +829,11 @@ small {
 }
 .root-empty-hint {
   margin: 0;
-  padding: 18px;
+  padding: 14px;
   color: var(--m3-on-surface-variant);
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.4px;
 }
 .root-row button {
   width: 32px;
@@ -829,19 +861,20 @@ small {
   gap: 8px;
   background: var(--m3-surface);
   border-top: 1px solid var(--m3-outline);
-  padding: 10px 16px 12px;
+  padding: 10px 16px;
 }
 .settings-bottom-bar button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  height: 32px;
+  gap: 8px;
+  height: 34px;
   border: 0;
   border-radius: 999px;
-  padding: 0 18px;
+  padding: 0 20px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: 0.1px;
   transition: background 140ms ease;
 }
 .settings-bottom-bar button svg {
