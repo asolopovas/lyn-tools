@@ -89,7 +89,7 @@ build: _frontend-build
 build: _frontend-build
     @echo "==> Building Lyn"
     @mkdir -p {{ build-bin }}
-    @if command -v wails >/dev/null 2>&1; then wails build -m -nosyncgomod -s; else go build -o {{ build-bin }}/lyn .; fi
+    @if command -v wails >/dev/null 2>&1; then wails build -m -nosyncgomod -s; else tags="desktop,production"; pkg-config --exists webkit2gtk-4.0 || tags="$tags,webkit2_41"; go build -tags "$tags" -ldflags="-w -s" -o {{ build-bin }}/lyn .; fi
 
 [windows]
 install: build
