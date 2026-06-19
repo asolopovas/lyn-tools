@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -102,6 +103,9 @@ func resolveWindowsAppIcon(ctx context.Context, cacheDir string, path string) (s
 	if _, err := os.Stat(out); err == nil {
 		return iconDataURI(out)
 	}
+	if strings.HasPrefix(path, windowsAppsFolderPrefix) {
+		return packagedWindowsAppIcon(out, path)
+	}
 	icon, ok := windowsAssociatedIcon(path)
 	if !ok {
 		return "", nil
@@ -122,6 +126,21 @@ func resolveWindowsAppIcon(ctx context.Context, cacheDir string, path string) (s
 	}
 	if closeErr != nil {
 		return "", closeErr
+	}
+	return iconDataURI(out)
+}
+
+func packagedWindowsAppIcon(out string, path string) (string, error) {
+	asset, ok := windowsPackagedAppLogo(strings.TrimPrefix(path, windowsAppsFolderPrefix))
+	if !ok {
+		return "", nil
+	}
+	data, err := os.ReadFile(asset)
+	if err != nil {
+		return "", nil
+	}
+	if err := os.WriteFile(out, data, 0o644); err != nil {
+		return "", err
 	}
 	return iconDataURI(out)
 }

@@ -24,6 +24,9 @@ func scanApplications(ctx context.Context, dirs []string, goos string) ([]Projec
 		return seen.sorted(), err
 	}
 	if goos == "windows" {
+		for _, tool := range windowsSystemTools() {
+			addApplication(seen, seenNames, tool)
+		}
 		if err := addWindowsStartApplications(ctx, seen, seenNames); err != nil {
 			return seen.sorted(), err
 		}
@@ -72,7 +75,14 @@ type appxApplication struct {
 type appxVisualElements struct {
 	DisplayName  string `xml:"DisplayName,attr"`
 	AppListEntry string `xml:"AppListEntry,attr"`
+	Square44Logo string `xml:"Square44x44Logo,attr"`
+	Square30Logo string `xml:"Square30x30Logo,attr"`
+	Logo         string `xml:"Logo,attr"`
 }
+
+const windowsAppsFolderPrefix = `shell:AppsFolder\`
+
+var applicationInstallerMarkers = []string{"uninstall", "install", "setup"}
 
 var windowsStartApps = queryWindowsStartApps
 var windowsPackagedAppRoots = defaultWindowsPackagedAppRoots
@@ -127,6 +137,53 @@ func windowsApplicationDirs() []string {
 	}
 }
 
+var windowsSystemRoot = defaultWindowsSystemRoot
+
+func defaultWindowsSystemRoot() string {
+	if root := strings.TrimSpace(os.Getenv("SystemRoot")); root != "" {
+		return root
+	}
+	return `C:\Windows`
+}
+
+type windowsSystemTool struct {
+	name string
+	uri  string
+	rel  []string
+}
+
+func windowsSystemTools() []Project {
+	root := windowsSystemRoot()
+	defs := []windowsSystemTool{
+		{name: "Control Panel", rel: []string{"System32", "control.exe"}},
+		{name: "Task Manager", rel: []string{"System32", "Taskmgr.exe"}},
+		{name: "Device Manager", rel: []string{"System32", "devmgmt.msc"}},
+		{name: "Services", rel: []string{"System32", "services.msc"}},
+		{name: "Event Viewer", rel: []string{"System32", "eventvwr.msc"}},
+		{name: "Disk Management", rel: []string{"System32", "diskmgmt.msc"}},
+		{name: "Computer Management", rel: []string{"System32", "compmgmt.msc"}},
+		{name: "Registry Editor", rel: []string{"regedit.exe"}},
+		{name: "Task Scheduler", rel: []string{"System32", "taskschd.msc"}},
+		{name: "Performance Monitor", rel: []string{"System32", "perfmon.exe"}},
+		{name: "System Information", rel: []string{"System32", "msinfo32.exe"}},
+		{name: "System Configuration", rel: []string{"System32", "msconfig.exe"}},
+		{name: "Settings", uri: "ms-settings:"},
+	}
+	tools := make([]Project, 0, len(defs))
+	for _, def := range defs {
+		if def.uri != "" {
+			tools = append(tools, newProject(def.name, def.uri, projectKindApp))
+			continue
+		}
+		path := filepath.Join(append([]string{root}, def.rel...)...)
+		if info, err := os.Stat(path); err != nil || info.IsDir() {
+			continue
+		}
+		tools = append(tools, newProject(def.name, path, projectKindApp))
+	}
+	return tools
+}
+
 func linuxApplicationDirs() []string {
 	home, _ := os.UserHomeDir()
 	return []string{
@@ -175,7 +232,7 @@ func addWindowsStartApplications(ctx context.Context, seen projectSet, seenNames
 		if !windowsStartAppAllowed(name, appID) {
 			continue
 		}
-		addApplication(seen, seenNames, newProject(name, `shell:AppsFolder\`+appID, projectKindApp))
+		addApplication(seen, seenNames, newProject(name, windowsAppsFolderPrefix+appID, projectKindApp))
 	}
 	return nil
 }
@@ -243,6 +300,129 @@ func parseWindowsPackageManifest(path string) ([]windowsStartApp, error) {
 		apps = append(apps, windowsStartApp{Name: name, AppID: family + "!" + strings.TrimSpace(application.ID)})
 	}
 	return apps, nil
+}
+
+func windowsPackagedAppLogo(appID string) (string, bool) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return "", false
+	}
+	for _, root := range windowsPackagedAppRoots() {
+		entries, err := os.ReadDir(root)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			packageDir := filepath.Join(root, entry.Name())
+			logo, ok := windowsManifestAppLogo(filepath.Join(packageDir, "AppxManifest.xml"), appID)
+			if !ok {
+				continue
+			}
+			if asset, ok := resolveWindowsAssetFile(packageDir, logo); ok {
+				return asset, true
+			}
+		}
+	}
+	return "", false
+}
+
+func windowsManifestAppLogo(manifestPath string, appID string) (string, bool) {
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return "", false
+	}
+	var manifest appxPackageManifest
+	if err := xml.Unmarshal(data, &manifest); err != nil {
+		return "", false
+	}
+	family := windowsPackageFamilyName(filepath.Base(filepath.Dir(manifestPath)), manifest.Identity.Name)
+	if family == "" {
+		return "", false
+	}
+	for _, application := range manifest.Applications {
+		id := strings.TrimSpace(application.ID)
+		if id == "" || family+"!"+id != appID {
+			continue
+		}
+		logo := firstNonEmpty(
+			application.VisualElements.Square44Logo,
+			application.VisualElements.Square30Logo,
+			application.VisualElements.Logo,
+		)
+		return strings.TrimSpace(logo), strings.TrimSpace(logo) != ""
+	}
+	return "", false
+}
+
+func resolveWindowsAssetFile(packageDir string, logo string) (string, bool) {
+	rel := filepath.FromSlash(strings.ReplaceAll(logo, `\`, "/"))
+	full := filepath.Join(packageDir, rel)
+	if info, err := os.Stat(full); err == nil && !info.IsDir() {
+		return full, true
+	}
+	return bestScaledWindowsAsset(full)
+}
+
+func bestScaledWindowsAsset(full string) (string, bool) {
+	dir := filepath.Dir(full)
+	ext := filepath.Ext(full)
+	prefix := strings.TrimSuffix(filepath.Base(full), ext) + "."
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", false
+	}
+	best := ""
+	bestScore := -1
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasPrefix(name, prefix) || !strings.EqualFold(filepath.Ext(name), ext) {
+			continue
+		}
+		qualifier := strings.ToLower(name[len(prefix) : len(name)-len(ext)])
+		if score := scaledAssetScore(qualifier); score > bestScore {
+			bestScore = score
+			best = filepath.Join(dir, name)
+		}
+	}
+	return best, best != ""
+}
+
+func scaledAssetScore(qualifier string) int {
+	if strings.Contains(qualifier, "contrast-") {
+		return 1
+	}
+	score := 10
+	switch {
+	case strings.Contains(qualifier, "scale-200"):
+		score = 100
+	case strings.Contains(qualifier, "scale-150"):
+		score = 90
+	case strings.Contains(qualifier, "scale-125"):
+		score = 85
+	case strings.Contains(qualifier, "scale-100"):
+		score = 80
+	case strings.Contains(qualifier, "targetsize-"):
+		score = 70
+	}
+	if strings.Contains(qualifier, "altform-unplated") {
+		score += 5
+	}
+	return score
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func windowsPackageApplicationAllowed(application appxApplication) bool {
@@ -339,10 +519,12 @@ func applicationNameAllowed(name string) bool {
 	if lowerName == "" {
 		return false
 	}
-	if strings.Contains(lowerName, "uninstall") || strings.Contains(lowerName, "uninstaller") {
-		return false
+	for _, marker := range applicationInstallerMarkers {
+		if strings.Contains(lowerName, marker) {
+			return false
+		}
 	}
-	return lowerName != "administrative tools"
+	return true
 }
 
 func windowsPathDirs() []string {

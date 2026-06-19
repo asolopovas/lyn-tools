@@ -29,6 +29,7 @@ Part of the [architecture map](../ARCHITECTURE.md).
 - Order: match quality, then kind tier, then usage count, last launch time, name, path.
 - Kind tiers (`kindRank`): `.code-workspace` first, then everything else (local projects, apps, WSL/non-SSH recents), then VS Code SSH-remote (`vscode-remote://ssh-remote+`), then system commands last.
 - Empty query lists workspaces first, power commands last.
+- The default (non-shortcut) list shows apps, system commands, and only the project folders, workspaces, and recents launched at least once. The workspace shortcut (`{`, `UI.WorkspaceQueryShortcut`) lists every folder, workspace, and recent (apps and commands excluded) so an unopened one is reachable to open the first time. When the shortcut is disabled, the default list shows everything.
 - Log Out / Restart / Shut Down are virtual `system-command` results (`lyn:system:{logout,restart,shutdown}`), added in memory by `indexProjects` and never saved. Opening the store also clears any stale rows as a safeguard.
 - Launch maps them to the real OS command (`shutdown.exe`, `systemctl`/`loginctl`, `osascript`). Windows runs `shutdown.exe` hidden.
 
@@ -42,3 +43,6 @@ Part of the [architecture map](../ARCHITECTURE.md).
 - Detection markers, highest priority first: WordPress, Laravel, Go, Node, Rust, then any `.git` repo. Only real `.code-workspace` files count as the `vscode-workspace` kind. A bare `.vscode` folder is not a workspace.
 - Dedup keys are case-insensitive for Windows drive paths (`C:\` == `c:\`). Remote (`vscode-remote://`) and Unix/UNC paths keep original casing.
 - Unreachable roots (missing, offline share, permission error) are reported by `ScanProjects` and logged `scan.root.skip`. A scan with skipped roots merges into the cache instead of replacing it.
+- App names containing `install`, `uninstall`, or `setup` (installer and repair shortcuts) are excluded (`applicationNameAllowed`).
+- On Windows, `windowsSystemTools` adds common system and admin tools (Control Panel, Task Manager, Device Manager, Services, Event Viewer, Disk/Computer Management, Registry Editor, Task Scheduler, Performance Monitor, System Information/Configuration, Settings) as `app` entries pointing at their real `%SystemRoot%` paths, so they launch and resolve icons like any app. Settings uses the `ms-settings:` URI. Entries whose file is absent are skipped, and discovered duplicates dedupe by name.
+- App icons resolve through `App.Icon`. Windows packaged apps (`shell:AppsFolder\…`) have no shell icon, so their icon comes from the `AppxManifest.xml` `Square44x44Logo` asset, picking the highest non-contrast scale variant; everything else uses `SHGetFileInfo`. Resolved icons cache to PNG under the cache `icons` dir.

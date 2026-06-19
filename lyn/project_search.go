@@ -35,14 +35,15 @@ func newSearchIndex(projects []Project) []searchProject {
 
 func searchProjectIndex(index []searchProject, query string, workspaceShortcut string) []Project {
 	raw := strings.TrimSpace(query)
-	workspaceMode := workspaceShortcut != "" && strings.HasPrefix(raw, workspaceShortcut)
+	workspaceEnabled := workspaceShortcut != ""
+	workspaceMode := workspaceEnabled && strings.HasPrefix(raw, workspaceShortcut)
 	text := strings.ToLower(raw)
 	if workspaceMode {
 		text = strings.ToLower(strings.TrimSpace(raw[len(workspaceShortcut):]))
 	}
 	tiers := [3][]Project{}
 	for _, item := range index {
-		if workspaceMode && !isWorkspaceSearchProject(item.project) {
+		if !includeInSearch(item.project, workspaceMode, workspaceEnabled) {
 			continue
 		}
 		score := projectSearchScore(item, text)
@@ -205,6 +206,17 @@ func boundedDamerauDistance(a string, b string, maxDistance int) int {
 
 func isWorkspaceSearchProject(project Project) bool {
 	return project.Kind != projectKindApp && project.Kind != projectKindSystemCommand
+}
+
+func includeInSearch(project Project, workspaceMode bool, workspaceEnabled bool) bool {
+	folder := isWorkspaceSearchProject(project)
+	if workspaceMode {
+		return folder
+	}
+	if !folder {
+		return true
+	}
+	return !workspaceEnabled || project.UsageCount > 0
 }
 
 func abs(value int) int {

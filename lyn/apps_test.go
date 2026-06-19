@@ -100,14 +100,55 @@ func TestWindowsStartupFolderIsSkipped(t *testing.T) {
 }
 
 func TestApplicationNameAllowedSkipsJunk(t *testing.T) {
-	blocked := []string{"Uninstall WhatsApp", "WhatsApp Uninstaller", "Administrative Tools", ""}
+	blocked := []string{"Uninstall WhatsApp", "WhatsApp Uninstaller", "Install Example", "Example Setup", ""}
 	for _, name := range blocked {
 		if applicationNameAllowed(name) {
 			t.Fatalf("expected %q to be blocked", name)
 		}
 	}
-	if !applicationNameAllowed("WhatsApp") {
-		t.Fatal("expected WhatsApp to be allowed")
+	for _, name := range []string{"WhatsApp", "Control Panel", "Administrative Tools"} {
+		if !applicationNameAllowed(name) {
+			t.Fatalf("expected %q to be allowed", name)
+		}
+	}
+}
+
+func TestWindowsSystemToolsResolveExistingPaths(t *testing.T) {
+	root := t.TempDir()
+	system32 := filepath.Join(root, "System32")
+	if err := os.MkdirAll(system32, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"control.exe", "services.msc"} {
+		if err := os.WriteFile(filepath.Join(system32, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "regedit.exe"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	original := windowsSystemRoot
+	windowsSystemRoot = func() string { return root }
+	t.Cleanup(func() { windowsSystemRoot = original })
+
+	byName := map[string]string{}
+	for _, tool := range windowsSystemTools() {
+		if tool.Kind != projectKindApp {
+			t.Fatalf("expected app kind, got %#v", tool)
+		}
+		byName[tool.Name] = tool.Path
+	}
+	if byName["Control Panel"] != filepath.Join(system32, "control.exe") {
+		t.Fatalf("unexpected Control Panel path %q", byName["Control Panel"])
+	}
+	if byName["Registry Editor"] != filepath.Join(root, "regedit.exe") {
+		t.Fatalf("unexpected Registry Editor path %q", byName["Registry Editor"])
+	}
+	if byName["Settings"] != "ms-settings:" {
+		t.Fatalf("expected Settings to use a URI, got %q", byName["Settings"])
+	}
+	if _, ok := byName["Task Manager"]; ok {
+		t.Fatal("expected missing Taskmgr.exe to be skipped")
 	}
 }
 
@@ -214,6 +255,66 @@ func TestParseWindowsPackageManifest(t *testing.T) {
 	}
 	if len(apps) != 1 || apps[0].Name != "WhatsApp" || apps[0].AppID != "5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App" {
 		t.Fatalf("unexpected apps %#v", apps)
+	}
+}
+
+func TestWindowsPackagedAppLogoResolvesScaledAsset(t *testing.T) {
+	root := t.TempDir()
+	packageDir := filepath.Join(root, "Example.App_1.0.0.0_x64__abc123")
+	assets := filepath.Join(packageDir, "Assets")
+	if err := os.MkdirAll(assets, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"><Identity Name="Example.App" Publisher="CN=test" Version="1" ProcessorArchitecture="x64" /><Properties><DisplayName>Example</DisplayName></Properties><Applications><Application Id="App" Executable="Example.exe"><uap:VisualElements DisplayName="Example App" Square44x44Logo="Assets\Square44x44Logo.png" /></Application></Applications></Package>`
+	if err := os.WriteFile(filepath.Join(packageDir, "AppxManifest.xml"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"Square44x44Logo.scale-100.png", "Square44x44Logo.scale-200.png", "Square44x44Logo.scale-200_contrast-black.png"} {
+		if err := os.WriteFile(filepath.Join(assets, name), []byte("png"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	original := windowsPackagedAppRoots
+	windowsPackagedAppRoots = func() []string { return []string{root} }
+	t.Cleanup(func() { windowsPackagedAppRoots = original })
+	asset, ok := windowsPackagedAppLogo("Example.App_abc123!App")
+	if !ok {
+		t.Fatal("expected a logo asset")
+	}
+	if filepath.Base(asset) != "Square44x44Logo.scale-200.png" {
+		t.Fatalf("expected scale-200 asset, got %q", asset)
+	}
+}
+
+func TestWindowsPackagedAppLogoUsesExactAssetWhenPresent(t *testing.T) {
+	root := t.TempDir()
+	packageDir := filepath.Join(root, "Example.App_1.0.0.0_x64__abc123")
+	assets := filepath.Join(packageDir, "Assets")
+	if err := os.MkdirAll(assets, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"><Identity Name="Example.App" Publisher="CN=test" Version="1" ProcessorArchitecture="x64" /><Properties><DisplayName>Example</DisplayName></Properties><Applications><Application Id="App" Executable="Example.exe"><uap:VisualElements DisplayName="Example App" Square44x44Logo="Assets\Square44x44Logo.png" /></Application></Applications></Package>`
+	if err := os.WriteFile(filepath.Join(packageDir, "AppxManifest.xml"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(assets, "Square44x44Logo.png"), []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	original := windowsPackagedAppRoots
+	windowsPackagedAppRoots = func() []string { return []string{root} }
+	t.Cleanup(func() { windowsPackagedAppRoots = original })
+	asset, ok := windowsPackagedAppLogo("Example.App_abc123!App")
+	if !ok || filepath.Base(asset) != "Square44x44Logo.png" {
+		t.Fatalf("expected exact logo asset, got %q (ok=%v)", asset, ok)
+	}
+}
+
+func TestWindowsPackagedAppLogoMissesUnknownApp(t *testing.T) {
+	original := windowsPackagedAppRoots
+	windowsPackagedAppRoots = func() []string { return []string{t.TempDir()} }
+	t.Cleanup(func() { windowsPackagedAppRoots = original })
+	if asset, ok := windowsPackagedAppLogo("Missing.App_abc123!App"); ok {
+		t.Fatalf("expected no logo, got %q", asset)
 	}
 }
 
