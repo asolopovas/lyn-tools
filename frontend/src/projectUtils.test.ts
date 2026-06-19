@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { title } from "./projectUtils";
+import { detail, title } from "./projectUtils";
 import type { Project } from "./types";
 
 const baseProject: Project = {
@@ -40,5 +40,25 @@ describe("project title", () => {
     ],
   ] as const)("formats %s", (_label, item, expected) => {
     expect(title(item)).toBe(expected);
+  });
+});
+
+describe("project detail", () => {
+  it.each([
+    [
+      "trims a deep path to its last 3 segments",
+      project("/home/me/src/acme/website", "node"),
+      "Node Package: src/acme/website",
+    ],
+    ["keeps short paths intact", project("/srv/example", "laravel"), "Laravel: srv/example"],
+    [
+      "handles Windows separators",
+      project("C:\\Users\\me\\src\\acme\\app", "go"),
+      "Go Module: src/acme/app",
+    ],
+    ["omits the line for apps", project("/usr/bin/firefox", "app"), ""],
+    ["omits the line for system commands", project("lyn:system:logout", "system-command"), ""],
+  ] as const)("%s", (_label, item, expected) => {
+    expect(detail(item)).toBe(expected);
   });
 });

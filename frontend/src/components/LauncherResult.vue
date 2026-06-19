@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { consumeEvent } from "../hotkeys";
 import { icons } from "../icons";
 import { detail, title } from "../projectUtils";
@@ -10,6 +11,8 @@ const props = defineProps<{
   selected: boolean;
   icon: string;
 }>();
+
+const detailText = computed(() => detail(props.project));
 
 const emit = defineEmits<{
   launch: [project: Project];
@@ -34,7 +37,7 @@ function launchResult(event: PointerEvent): void {
     </div>
     <div class="project-copy">
       <strong>{{ title(project) }}</strong>
-      <small>{{ detail(project) }}</small>
+      <small v-if="detailText">{{ detailText }}</small>
     </div>
     <div class="result-actions" aria-label="Result actions" @pointerdown="consumeEvent">
       <button

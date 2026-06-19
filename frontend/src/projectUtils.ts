@@ -24,7 +24,15 @@ export function title(project: Project): string {
 }
 
 export function detail(project: Project): string {
-  return `${kindLabel(project.kind)}: ${project.path}`;
+  if (project.kind === "app" || project.kind === "system-command") {
+    return "";
+  }
+  return `${kindLabel(project.kind)}: ${tailSegments(project.path, 3)}`;
+}
+
+function tailSegments(path: string, count: number): string {
+  const segments = path.split(/[\\/]+/).filter((segment) => segment.length > 0);
+  return segments.slice(-count).join("/");
 }
 
 function remoteLabel(project: Project): string {
