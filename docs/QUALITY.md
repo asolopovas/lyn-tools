@@ -20,9 +20,9 @@ Applies to every change. Prefer mechanical enforcement over reminders.
 - Never use sleeps for test correctness, only channels, contexts, polling with deadlines, or fakes.
 - Wrap errors with operation context.
 - Log before swallowing platform API failures.
-- Keep interfaces small and consumer-owned, returning concrete types unless boundaries need otherwise.
+- Keep interfaces small and consumer-owned, returning concrete types unless a consumer must swap implementations.
 - Prefer immutable tables, protecting any mutable package state with locks or atomics.
-- Use build tags for platform behavior, with non-target fallbacks as explicit no-ops or equivalent.
+- Use build tags for platform behavior, with non-target fallbacks as explicit no-ops or a returned unsupported-platform error.
 - Table-test parsing, ranking, path conversion, launch-command building, and platform decisions.
 - Keep tests generic with `example`, `examplehost`, and temp paths, never real user, host, company, domain, SSH-alias, project, or filesystem names.
 
