@@ -93,7 +93,7 @@ export function useSettingsState(options: {
 
   async function loadWSLDistros(): Promise<void> {
     try {
-      wslDistros.value = await api.WSLDistros();
+      wslDistros.value = (await api.WSLDistros()) ?? [];
     } catch {
       wslDistros.value = [];
     }
