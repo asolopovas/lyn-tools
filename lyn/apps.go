@@ -480,8 +480,46 @@ func desktopApplicationName(path string) (string, bool) {
 	if strings.EqualFold(entry["NoDisplay"], "true") || strings.EqualFold(entry["Hidden"], "true") {
 		return "", false
 	}
+	if !desktopShownIn(entry, currentDesktops()) {
+		return "", false
+	}
 	name := strings.TrimSpace(entry["Name"])
 	return name, name != ""
+}
+
+func currentDesktops() []string {
+	return splitDesktopList(os.Getenv("XDG_CURRENT_DESKTOP"), ":")
+}
+
+func desktopShownIn(entry map[string]string, current []string) bool {
+	if only := splitDesktopList(entry["OnlyShowIn"], ";"); len(only) > 0 && !desktopListsIntersect(only, current) {
+		return false
+	}
+	if not := splitDesktopList(entry["NotShowIn"], ";"); len(not) > 0 && desktopListsIntersect(not, current) {
+		return false
+	}
+	return true
+}
+
+func splitDesktopList(value, sep string) []string {
+	var out []string
+	for _, part := range strings.Split(value, sep) {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
+func desktopListsIntersect(a, b []string) bool {
+	for _, x := range a {
+		for _, y := range b {
+			if strings.EqualFold(x, y) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func readDesktopEntry(path string) map[string]string {

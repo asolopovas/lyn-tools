@@ -317,3 +317,33 @@ func TestHiddenLinuxApplicationIsSkipped(t *testing.T) {
 		t.Fatalf("unexpected app count %d", len(apps))
 	}
 }
+
+func TestLinuxApplicationRespectsShowInEnvironment(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("only-lxqt.desktop", "[Desktop Entry]\nName=Lxqt Only\nOnlyShowIn=LXQt;\nExec=lxqt-leave --logout\n")
+	write("not-xmonad.desktop", "[Desktop Entry]\nName=Not Xmonad\nNotShowIn=Xmonad;\nExec=foo\n")
+	write("plain.desktop", "[Desktop Entry]\nName=Plain App\nExec=plain\n")
+
+	t.Setenv("XDG_CURRENT_DESKTOP", "Xmonad")
+	apps, err := scanApplicationDirs(context.Background(), []string{dir}, "linux")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(apps) != 1 || apps[0].Name != "Plain App" {
+		t.Fatalf("expected only the plain app under Xmonad, got %#v", apps)
+	}
+
+	t.Setenv("XDG_CURRENT_DESKTOP", "LXQt")
+	apps, err = scanApplicationDirs(context.Background(), []string{dir}, "linux")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(apps) != 3 {
+		t.Fatalf("expected all apps under LXQt, got %d", len(apps))
+	}
+}
