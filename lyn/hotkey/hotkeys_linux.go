@@ -2,7 +2,21 @@
 
 package hotkey
 
-import nativehotkey "golang.design/x/hotkey"
+/*
+#cgo LDFLAGS: -lX11
+#include <stdint.h>
+
+void lynRunHotkey(uintptr_t handle, int keysym, unsigned int baseMod, unsigned int *grabMods, int nMods, int stopFD);
+*/
+import "C"
+
+import (
+	"runtime"
+	"sync"
+	"syscall"
+
+	nativehotkey "golang.design/x/hotkey"
+)
 
 const capsLockMask = nativehotkey.Modifier(1 << 1)
 
@@ -21,32 +35,89 @@ func hotkeyLockVariants(base []nativehotkey.Modifier) [][]nativehotkey.Modifier 
 	return variants
 }
 
-type multiRegistration []*nativehotkey.Hotkey
+var (
+	fireMu       sync.Mutex
+	fireSeq      uintptr
+	fireHandlers = map[uintptr]func(){}
+)
 
-func (m multiRegistration) Unregister() error {
-	var firstErr error
-	for _, hk := range m {
-		if err := hk.Unregister(); err != nil && firstErr == nil {
-			firstErr = err
-		}
+func addFireHandler(onPress func()) uintptr {
+	fireMu.Lock()
+	defer fireMu.Unlock()
+	fireSeq++
+	fireHandlers[fireSeq] = onPress
+	return fireSeq
+}
+
+func removeFireHandler(handle uintptr) {
+	fireMu.Lock()
+	defer fireMu.Unlock()
+	delete(fireHandlers, handle)
+}
+
+//export goHotkeyFire
+func goHotkeyFire(handle C.uintptr_t) {
+	fireMu.Lock()
+	onPress := fireHandlers[uintptr(handle)]
+	fireMu.Unlock()
+	if onPress != nil {
+		go onPress()
 	}
-	return firstErr
+}
+
+type linuxRegistration struct {
+	once    sync.Once
+	writeFD int
+	done    chan struct{}
+}
+
+func (r *linuxRegistration) Unregister() error {
+	r.once.Do(func() {
+		_, _ = syscall.Write(r.writeFD, []byte{0})
+		<-r.done
+		_ = syscall.Close(r.writeFD)
+	})
+	return nil
 }
 
 func registerHotkeyBinding(binding Binding, onPress func()) (Registration, error) {
-	registered := make(multiRegistration, 0, 4)
-	for _, mods := range hotkeyLockVariants(binding.Modifiers) {
-		hk := nativehotkey.New(mods, binding.Key)
-		if err := hk.Register(); err != nil {
-			_ = registered.Unregister()
-			return nil, err
-		}
-		registered = append(registered, hk)
-		go func() {
-			for range hk.Keydown() {
-				onPress()
-			}
-		}()
+	var baseMod C.uint
+	for _, m := range binding.Modifiers {
+		baseMod |= C.uint(m)
 	}
-	return registered, nil
+	variants := hotkeyLockVariants(binding.Modifiers)
+	grabMods := make([]C.uint, 0, len(variants))
+	for _, mods := range variants {
+		var mask C.uint
+		for _, m := range mods {
+			mask |= C.uint(m)
+		}
+		grabMods = append(grabMods, mask)
+	}
+
+	var fds [2]int
+	if err := syscall.Pipe(fds[:]); err != nil {
+		return nil, err
+	}
+
+	handle := addFireHandler(onPress)
+	done := make(chan struct{})
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		C.lynRunHotkey(
+			C.uintptr_t(handle),
+			C.int(binding.Key),
+			baseMod,
+			&grabMods[0],
+			C.int(len(grabMods)),
+			C.int(fds[0]),
+		)
+		runtime.KeepAlive(grabMods)
+		_ = syscall.Close(fds[0])
+		removeFireHandler(handle)
+		close(done)
+	}()
+
+	return &linuxRegistration{writeFD: fds[1], done: done}, nil
 }
