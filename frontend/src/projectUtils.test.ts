@@ -48,14 +48,10 @@ describe("project detail", () => {
     [
       "trims a deep path to its last 3 segments",
       project("/home/me/src/acme/website", "node"),
-      "Node Package: src/acme/website",
+      "src/acme/website",
     ],
-    ["keeps short paths intact", project("/srv/example", "laravel"), "Laravel: srv/example"],
-    [
-      "handles Windows separators",
-      project("C:\\Users\\me\\src\\acme\\app", "go"),
-      "Go Module: src/acme/app",
-    ],
+    ["keeps short paths intact", project("/srv/example", "laravel"), "srv/example"],
+    ["handles Windows separators", project("C:\\Users\\me\\src\\acme\\app", "go"), "src/acme/app"],
     ["omits the line for apps", project("/usr/bin/firefox", "app"), ""],
     ["omits the line for system commands", project("lyn:system:logout", "system-command"), ""],
   ] as const)("%s", (_label, item, expected) => {

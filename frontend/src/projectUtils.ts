@@ -1,17 +1,5 @@
 import type { Project } from "./types";
 
-const kindLabels: Record<string, string> = {
-  wordpress: "WordPress",
-  laravel: "Laravel",
-  go: "Go Module",
-  node: "Node Package",
-  rust: "Rust Crate",
-  "vscode-workspace": "Workspace",
-  "vscode-recent": "VS Code Recent",
-  app: "App",
-  "system-command": "System Command",
-};
-
 export function title(project: Project): string {
   if (project.displayName) return project.displayName;
   if (project.kind === "vscode-workspace") {
@@ -27,7 +15,7 @@ export function detail(project: Project): string {
   if (project.kind === "app" || project.kind === "system-command") {
     return "";
   }
-  return `${kindLabel(project.kind)}: ${tailSegments(project.path, 3)}`;
+  return tailSegments(project.path, 3);
 }
 
 function tailSegments(path: string, count: number): string {
@@ -45,8 +33,4 @@ function isSSHRemoteProject(project: Project): boolean {
     path.startsWith("vscode-remote://ssh-remote+") ||
     path.startsWith("vscode-remote://ssh-remote%2b")
   );
-}
-
-function kindLabel(kind: string): string {
-  return kindLabels[kind] ?? "Project Folder";
 }
