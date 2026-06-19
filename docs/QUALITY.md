@@ -31,7 +31,6 @@ Applies to every change. Prefer mechanical enforcement over reminders.
 - Use Vue 3 Composition API with `<script setup>` and strict TypeScript.
 - Keep components presentational, with reusable state in composables or modules.
 - Route Wails calls through `frontend/src/backend.ts`, not generated bindings directly.
-- Centralize and test keyboard/action mapping, sharing helpers.
 - Keep behavior identical across mouse, keyboard, and native fallback.
 - Local storage is a warm render cache, not truth.
 - Vitest for pure logic, Playwright for user journeys.
@@ -45,8 +44,6 @@ Applies to every change. Prefer mechanical enforcement over reminders.
 - Give critical launcher actions a native fallback, not only WebView keyboard/focus.
 - In frameless windows, avoid broad draggable regions and mark interactive regions `--wails-draggable: no-drag`.
 - Startup, shutdown, tray, watcher, and hotkey registrations must be idempotent and tear down cleanly.
-- LF is pinned via `.gitattributes` (`* text=auto eol=lf`). Without it, `core.autocrlf=true` checks out CRLF and breaks `gofmt`/`oxfmt`. If files show renormalized, run `git add --renormalize .`.
-- Keyboard-hook key state misses events during secure desktop and hook timeouts. Reconcile against `GetAsyncKeyState` before suppressing input, or a missed Win keyup permanently swallows the hotkey letter.
 
 ## Validation
 
@@ -68,9 +65,6 @@ For UI, launch, focus, hotkey, watcher, or platform changes, also:
 
 - One fact, one place. State the current rule, not how it was found or the old behavior.
 - Edit in place by rewriting, never appending a new version.
-- One sentence of "why" max per non-obvious rule. The regression test is the incident record.
-- Keep rationale where it is enforced (test, lint, or schema over prose). Use docs only when no mechanical home exists.
-- A bullet past ~3 lines belongs in a test name, commit, or exec-plan. Split or trim a doc that grows past its purpose in the same change.
-- Convert repeated review comments into tests, lints, docs, or examples.
+- Keep rationale where it is enforced (test, lint, or schema over prose).
 - Remove obsolete docs and stale artifacts in the change that makes them stale.
 - Track larger cleanup in `docs/exec-plans/active/`.
