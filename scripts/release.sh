@@ -174,7 +174,7 @@ upload_release() {
 			exit 1
 		fi
 	fi
-	gh release create "$tag" "$out_dir"/* --title "Lyn $tag" --notes "Lyn $tag" --latest
+	gh release create "$tag" "$out_dir"/* --title "Lyn $tag" --notes "Lyn $tag"
 }
 
 publish_assets_command() {
@@ -201,7 +201,7 @@ publish_assets_command() {
 		esac
 	done < <(gh release view "$tag" --json assets --jq '.assets[].name')
 	gh release upload "$tag" "$out_dir"/*.deb "$out_dir"/SHA256SUMS --clobber
-	gh release edit "$tag" --latest
+	gh release edit "$tag" --latest 2>/dev/null || true
 }
 
 bump_command() {
