@@ -56,7 +56,8 @@ Lyn is a Wails desktop launcher for projects, apps, VS Code recents, and workspa
 ## Harness
 
 - `docs/QUALITY.md` is the strict development policy for Go, Vue, Wails, cross-platform behavior, and validation.
-- `just check` is the local and CI quality gate: formatting, Go tests, vet, staticcheck, frontend lint/typecheck/unit/e2e.
+- `just check` is the local and CI quality gate: formatting, Go tests, vet, staticcheck, frontend lint/typecheck/unit/e2e. It installs `staticcheck` on first run; the `.github/workflows/ci.yml` `CI` workflow runs it on Linux and Windows runners.
+- Tests that depend on host filepath semantics for the other OS (Windows path reveal/system-dir tests) call `requireWindowsHost` and skip off Windows, so they are exercised only by the Windows CI job. Do not rewrite host-correct `filepath` code to make them pass cross-platform.
 - Structural tests enforce folder rules.
 - Add focused tests or benchmarks for traversal, ranking, cache writes, launch, focus, watcher, icon, and platform behavior.
 - Validate UI changes by driving the running app or Playwright path and inspecting screenshots/logs.

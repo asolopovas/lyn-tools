@@ -7,7 +7,7 @@ export default defineConfig({
   use: {
     ...devices["Desktop Chrome"],
     baseURL: "http://127.0.0.1:5173",
-    channel: process.env.PLAYWRIGHT_CHANNEL ?? "msedge",
+    ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
   },
   webServer: {
     command: "pnpm dev",

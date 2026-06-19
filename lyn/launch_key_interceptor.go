@@ -32,16 +32,20 @@ func (a *App) registerLaunchKeyInterceptor() {
 	a.stateMu.Unlock()
 }
 
+func launchablePath(path string) bool {
+	return strings.TrimSpace(path) != "" && !isSystemCommandPath(path)
+}
+
 func (a *App) hasCachedLaunchSelection() bool {
 	a.launchSelectionMu.Lock()
 	path := a.launchSelection.Path
 	a.launchSelectionMu.Unlock()
-	return strings.TrimSpace(path) != "" && !isSystemCommandPath(path)
+	return launchablePath(path)
 }
 
 func (a *App) runNativeShortcut(action string) {
 	request := a.currentLaunchSelection()
-	if strings.TrimSpace(request.Path) == "" || isSystemCommandPath(request.Path) {
+	if !launchablePath(request.Path) {
 		a.debugLog("launch.native.missing")
 		return
 	}

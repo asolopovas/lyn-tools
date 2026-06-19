@@ -3,9 +3,17 @@ package launch
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+func requireWindowsHost(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows path semantics require a Windows host; covered by the windows CI job")
+	}
+}
 
 func TestBuildLaunchCommandWindowsOpen(t *testing.T) {
 	cmd, err := BuildLaunchCommand(Request{Path: `C:\Users\me\src\app`, Action: "open"}, "windows")
@@ -200,6 +208,7 @@ func TestBuildLaunchCommandWindowsPackagedAppMapsUnsupportedActionsToOpen(t *tes
 }
 
 func TestBuildLaunchCommandWindowsRevealShortcut(t *testing.T) {
+	requireWindowsHost(t)
 	cmd, err := BuildLaunchCommand(Request{Path: `C:\ProgramData\Microsoft\Windows\Start Menu\Programs\App.lnk`, Action: "reveal"}, "windows")
 	if err != nil {
 		t.Fatal(err)
@@ -210,6 +219,7 @@ func TestBuildLaunchCommandWindowsRevealShortcut(t *testing.T) {
 }
 
 func TestBuildLaunchCommandWindowsRevealFolder(t *testing.T) {
+	requireWindowsHost(t)
 	cmd, err := BuildLaunchCommand(Request{Path: `C:\Users\me\src\app`, Action: "reveal"}, "windows")
 	if err != nil {
 		t.Fatal(err)

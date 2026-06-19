@@ -3,8 +3,16 @@ package lyn
 import (
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 )
+
+func requireWindowsHost(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows path semantics require a Windows host; covered by the windows CI job")
+	}
+}
 
 func TestCleanUniquePathsTrimsCleansAndDeduplicates(t *testing.T) {
 	root := t.TempDir()
@@ -59,6 +67,7 @@ func TestIsWindowsStartupDir(t *testing.T) {
 }
 
 func TestWithinWindowsSystemDir(t *testing.T) {
+	requireWindowsHost(t)
 	t.Setenv("SystemRoot", `C:\Windows`)
 	t.Setenv("WINDIR", `C:\Windows`)
 	within := []string{`C:\Windows`, `C:\Windows\System32`, `C:\Windows\System32\drivers`}

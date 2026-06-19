@@ -20,14 +20,11 @@ Version: `0.1.7`
 - pnpm 11+
 - Wails v2.12+
 - `just`
-- `staticcheck`
 - WebView2 runtime on Windows
 - NSIS for Windows installers
 - Docker for Windows-built `.deb` packages
 
-```bash
-go install honnef.co/go/tools/cmd/staticcheck@latest
-```
+`just check` and `just install` install their own remaining toolchain (`staticcheck`, the Playwright browser, and on Linux the native GTK/WebKit build libraries) on first run.
 
 ## Usage
 
@@ -57,6 +54,8 @@ just scan
 ```
 
 `just install` installs locked frontend dependencies, builds the app, and installs the resulting binary. On Linux it first installs any missing native build libraries (GTK3, WebKit2GTK, Ayatana AppIndicator) via the system package manager.
+
+`just check` runs the full gate for the host OS. The GitHub Actions `CI` workflow runs it on both Linux and Windows, so Windows-only behavior (native path semantics, build-tagged code) is validated from a Linux checkout without a local Windows machine; those host-specific tests skip locally off Windows.
 
 Read `AGENTS.md` and `ARCHITECTURE.md` before structural changes. Use checked-in execution plans for complex work.
 

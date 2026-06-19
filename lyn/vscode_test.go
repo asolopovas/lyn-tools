@@ -186,6 +186,7 @@ func TestParseVSCodeRecentURIObject(t *testing.T) {
 }
 
 func TestWindowsSystemRecentPathIsSkipped(t *testing.T) {
+	requireWindowsHost(t)
 	t.Setenv("SystemRoot", `C:\Windows`)
 	t.Setenv("WINDIR", `C:\Windows`)
 	if vscodeRecentPathAllowed(`C:\Windows`, "windows") {
