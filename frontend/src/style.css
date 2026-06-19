@@ -668,8 +668,7 @@ small {
 .process-card.selected .process-radio {
   border-color: var(--m3-accent);
   background:
-    radial-gradient(circle, var(--m3-accent) 0 4px, transparent 5px),
-    var(--m3-surface-container);
+    radial-gradient(circle, var(--m3-accent) 0 4px, transparent 5px), var(--m3-surface-container);
 }
 .process-card strong {
   color: var(--m3-on-surface);
