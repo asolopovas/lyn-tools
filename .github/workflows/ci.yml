@@ -35,7 +35,9 @@ jobs:
 
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
-        run: bash scripts/system-deps-linux.sh
+        run: |
+          bash scripts/system-deps-linux.sh
+          sudo apt-get install -y xvfb
 
       - name: Install frontend dependencies
         run: pnpm --dir frontend install --frozen-lockfile
@@ -43,5 +45,10 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --dir frontend exec playwright install ${{ runner.os == 'Linux' && '--with-deps' || '' }} chromium
 
-      - name: Check
+      - name: Check (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a just check
+
+      - name: Check (Windows)
+        if: runner.os == 'Windows'
         run: just check
