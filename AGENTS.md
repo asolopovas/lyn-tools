@@ -18,7 +18,8 @@ Rules:
 - Keep `AGENTS.md` short; link deeper docs instead of duplicating them.
 - Follow `ARCHITECTURE.md` for layout, folder, and file-split rules.
 - Keep code and scripts free of comments; put rationale in markdown.
-- Update docs when workflow, architecture, validation, reliability, or performance knowledge changes.
+- Docs state the current rule, not its history: capture the decision and the single reason it matters, and drop incident narratives, before/after stories, and repeated context. See `docs/QUALITY.md` "Docs".
+- Update docs when workflow, architecture, validation, reliability, or performance knowledge changes; editing a fact means rewriting it in place, not appending a new version.
 - On `plan`, create or update `docs/exec-plans/active/NNN-topic.md` before coding.
 - Work loop: inspect -> plan -> implement -> validate -> run/observe -> self-review -> handoff.
 - Use isolated worktrees/env, ports, caches, logs, and app instances for parallel or risky work.

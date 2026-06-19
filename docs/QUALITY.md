@@ -64,6 +64,15 @@ For UI, launch, focus, hotkey, watcher, or platform changes also:
 4. Inspect debug logs for expected stages and absence of errors.
 5. Restart and repeat if the fix changes lifecycle behavior.
 
+## Docs
+
+- One fact, one place. State the current rule or constraint; do not narrate how it was discovered or what the old behavior was.
+- Give each non-obvious rule at most one sentence of "why" — the durable reason it holds, not the bug that prompted it. The regression test is the incident record; the doc is the rule.
+- Edit in place. Changing a fact means rewriting that line, never appending a newer version beside the old one.
+- Prefer scannable bullets over paragraphs; a bullet that runs past ~3 lines is a sign it carries narrative that belongs in a test name, commit message, or exec-plan.
+- Keep rationale where it is enforced: prefer a regression test, lint, or schema over prose; reach for docs only when no mechanical home exists.
+- When a doc grows past its purpose, split or trim it in the same change rather than letting it accrete.
+
 ## Continuous Cleanup
 
 - Convert repeated review comments into tests, lints, docs, or examples.
