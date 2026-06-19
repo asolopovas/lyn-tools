@@ -85,11 +85,16 @@ build: _frontend-build
     @New-Item -ItemType Directory -Path "{{ build-bin }}" -Force | Out-Null
     @$wails = Get-Command wails -ErrorAction SilentlyContinue; if ($wails) { wails build -m -nosyncgomod -s } else { go build -tags "desktop,production" -ldflags="-w -s -H windowsgui" -o "{{ build-bin }}/lyn.exe" . }
 
-[unix]
+[linux]
+build: _frontend-build
+    @echo "==> Building Lyn"
+    @bash "{{ justfile_directory() }}/scripts/build-linux.sh" "{{ justfile_directory() }}" "{{ build-bin }}"
+
+[macos]
 build: _frontend-build
     @echo "==> Building Lyn"
     @mkdir -p {{ build-bin }}
-    @if command -v wails >/dev/null 2>&1; then wails build -m -nosyncgomod -s; else tags="desktop,production"; pkg-config --exists webkit2gtk-4.0 || tags="$tags,webkit2_41"; go build -tags "$tags" -ldflags="-w -s" -o {{ build-bin }}/lyn .; fi
+    @if command -v wails >/dev/null 2>&1; then wails build -m -nosyncgomod -s; else go build -tags "desktop,production" -o {{ build-bin }}/lyn .; fi
 
 [windows]
 install: build

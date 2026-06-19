@@ -56,7 +56,7 @@ just build
 just scan
 ```
 
-`just install` installs locked frontend dependencies, lets Go use the module and build caches, builds the app, and installs the resulting binary.
+`just install` installs locked frontend dependencies, builds the app, and installs the resulting binary. On Linux it first installs any missing native build libraries (GTK3, WebKit2GTK, Ayatana AppIndicator) via the system package manager.
 
 Read `AGENTS.md` and `ARCHITECTURE.md` before structural changes. Use checked-in execution plans for complex work.
 
