@@ -66,6 +66,28 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
                 </option>
               </select>
             </label>
+            <div class="settings-field settings-card-row color-field-row">
+              <span>Quick pick</span>
+              <div class="theme-swatches">
+                <button
+                  v-for="key in themeKeys"
+                  :key="key"
+                  class="theme-swatch"
+                  :class="{ active: cfg.ui.theme === key }"
+                  type="button"
+                  :style="{
+                    '--swatch-accent': themeByKey(key).accent,
+                    '--swatch-bg': themeByKey(key).background,
+                  }"
+                  :title="themeByKey(key).name"
+                  :aria-label="themeByKey(key).name"
+                  :aria-pressed="cfg.ui.theme === key"
+                  @click="cfg.ui.theme = key"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.check" /></svg>
+                </button>
+              </div>
+            </div>
             <label class="settings-field settings-card-row">
               <span class="settings-row-title"
                 ><span>Opacity</span><code>{{ opacityPercent }}</code></span
@@ -77,10 +99,6 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
                 max="1"
                 step="0.01"
               />
-            </label>
-            <label class="settings-field settings-card-row color-field-row">
-              <span>Highlight color</span>
-              <input v-model="cfg.ui.selectionColor" type="color" />
             </label>
             <label class="settings-toggle-row settings-card-row">
               <span>Clear search on open</span>
@@ -136,10 +154,12 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
               :disabled="!elevationStatus?.canSwitch || elevationStatus?.mode === 'standard'"
               @click="$emit('switch-elevation', 'standard')"
             >
+              <span v-if="standardModeSelected" class="process-check" aria-hidden="true"
+                ><svg viewBox="0 0 24 24"><path :d="icons.check" /></svg
+              ></span>
               <span class="process-glyph"
                 ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.account" /></svg
               ></span>
-              <span class="process-radio" aria-hidden="true"></span>
               <strong>Standard</strong>
               <small>Runs with normal privileges. Safer, but can't reach elevated apps.</small>
             </button>
@@ -150,10 +170,12 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
               :disabled="!elevationStatus?.canSwitch || elevationStatus?.mode === 'admin'"
               @click="$emit('switch-elevation', 'admin')"
             >
+              <span v-if="adminModeSelected" class="process-check" aria-hidden="true"
+                ><svg viewBox="0 0 24 24"><path :d="icons.check" /></svg
+              ></span>
               <span class="process-glyph"
                 ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.shieldAccount" /></svg
               ></span>
-              <span class="process-radio" aria-hidden="true"></span>
               <strong>Administrator</strong>
               <small>Requires UAC. Can launch and reach elevated apps.</small>
             </button>
