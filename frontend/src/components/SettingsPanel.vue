@@ -41,6 +41,9 @@ defineEmits<{
   "capture-hotkey": [event: KeyboardEvent];
 }>();
 
+const themeOptions = computed(() =>
+  props.themeKeys.map((key) => ({ value: key, label: themeByKey(key).name })),
+);
 const opacityPercent = computed(() => `${Math.round(cfg.value.ui.backgroundOpacity * 100)}%`);
 const standardModeSelected = computed(() => props.elevationStatus?.mode !== "admin");
 const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin");
@@ -75,11 +78,7 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
         <UiSection title="Appearance">
           <UiCard>
             <UiField label="Theme">
-              <UiSelect v-model="cfg.ui.theme">
-                <option v-for="key in themeKeys" :key="key" :value="key">
-                  {{ themeByKey(key).name }}
-                </option>
-              </UiSelect>
+              <UiSelect v-model="cfg.ui.theme" :options="themeOptions" />
             </UiField>
             <UiField label="Quick pick" inline>
               <div class="flex flex-wrap justify-end gap-2">

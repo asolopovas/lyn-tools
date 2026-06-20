@@ -24,7 +24,7 @@ defineEmits<{
       {{ path }}
       <small
         v-if="badge"
-        class="ml-2 flex-none rounded-full bg-(--m3-surface-container-highest) px-2 py-0.5 text-[10px]/[14px] text-(--m3-on-surface-variant)"
+        class="ml-2 flex-none rounded-full bg-(--m3-surface-container-highest) px-2 py-0.5 font-sans text-[10px]/[14px] text-(--m3-on-surface-variant)"
         >{{ badge }}</small
       >
     </span>

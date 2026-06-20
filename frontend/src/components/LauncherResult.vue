@@ -57,7 +57,7 @@ function launchResult(event: PointerEvent): void {
       >
       <small
         v-if="detailText"
-        class="overflow-hidden text-ellipsis whitespace-nowrap text-xs leading-4"
+        class="overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs leading-4"
         :class="selected ? 'text-selected-fg' : 'text-muted'"
         >{{ detailText }}</small
       >
@@ -70,7 +70,7 @@ function launchResult(event: PointerEvent): void {
       <button
         v-for="button in actionButtons(project, platform)"
         :key="button.action"
-        class="grid size-8 place-items-center border-transparent bg-transparent p-0 hover:bg-selected hover:text-selected-fg"
+        class="grid size-8 place-items-center rounded-[6px] border border-transparent bg-transparent p-0 hover:bg-selected hover:text-selected-fg"
         :class="selected ? 'text-selected-fg' : 'text-muted'"
         type="button"
         :title="button.title"
