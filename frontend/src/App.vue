@@ -72,6 +72,16 @@ const themeStyle = computed(() => ({
   "--lyn-opacity": String(backgroundOpacity.value),
   "--lyn-surface": surfaceColor.value,
 }));
+watch(
+  themeStyle,
+  (style) => {
+    const root = document.documentElement;
+    for (const [name, value] of Object.entries(style)) {
+      root.style.setProperty(name, String(value));
+    }
+  },
+  { immediate: true },
+);
 const launcherHeight = computed(() => (settingsOpen.value ? settingsHeight : 306));
 const windowWidth = computed(() => (settingsOpen.value ? settingsWidth : launcherWidth));
 const settings = useSettingsState({
@@ -375,7 +385,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="min-h-screen box-border bg-transparent" :style="themeStyle">
+  <main class="min-h-screen box-border bg-transparent">
     <section
       v-if="appReady"
       class="relative box-border w-full overflow-hidden [--wails-draggable:no-drag]"

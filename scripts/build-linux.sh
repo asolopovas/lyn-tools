@@ -8,10 +8,12 @@ cd "$root"
 bash "$root/scripts/system-deps-linux.sh"
 
 mkdir -p "$bin_dir"
+webkit_tags=""
+pkg-config --exists webkit2gtk-4.0 || webkit_tags="webkit2_41"
 if command -v wails >/dev/null 2>&1; then
-	wails build -m -nosyncgomod -s
+	wails build -m -nosyncgomod -s -tags "$webkit_tags"
 else
 	tags="desktop,production"
-	pkg-config --exists webkit2gtk-4.0 || tags="$tags,webkit2_41"
+	test -z "$webkit_tags" || tags="$tags,$webkit_tags"
 	go build -tags "$tags" -ldflags="-w -s" -o "$bin_dir/lyn" .
 fi

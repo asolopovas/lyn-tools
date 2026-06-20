@@ -30,23 +30,24 @@
   --font-mono: "Roboto Mono", ui-monospace, "Cascadia Code", monospace;
 }
 
+:root {
+  --m3-surface: var(--lyn-bg);
+  --m3-surface-container: color-mix(in srgb, var(--lyn-bg) 95%, var(--lyn-text));
+  --m3-surface-container-high: color-mix(in srgb, var(--lyn-bg) 90%, var(--lyn-text));
+  --m3-surface-container-highest: color-mix(in srgb, var(--lyn-bg) 85%, var(--lyn-text));
+  --m3-on-surface: var(--lyn-text);
+  --m3-on-surface-variant: color-mix(in srgb, var(--lyn-text) 62%, transparent);
+  --m3-outline: color-mix(in srgb, var(--lyn-text) 12%, transparent);
+  --m3-outline-strong: color-mix(in srgb, var(--lyn-text) 24%, transparent);
+  --m3-accent: var(--lyn-accent);
+  --m3-accent-container: color-mix(in srgb, var(--lyn-accent) 24%, var(--lyn-bg));
+  --m3-on-accent: var(--lyn-bg);
+  --m3-state: color-mix(in srgb, var(--lyn-text) 8%, transparent);
+  --m3-state-strong: color-mix(in srgb, var(--lyn-text) 12%, transparent);
+  --m3-error: #ff897d;
+}
+
 @layer base {
-  :root {
-    --m3-surface: var(--lyn-bg);
-    --m3-surface-container: color-mix(in srgb, var(--lyn-bg) 95%, var(--lyn-text));
-    --m3-surface-container-high: color-mix(in srgb, var(--lyn-bg) 90%, var(--lyn-text));
-    --m3-surface-container-highest: color-mix(in srgb, var(--lyn-bg) 85%, var(--lyn-text));
-    --m3-on-surface: var(--lyn-text);
-    --m3-on-surface-variant: color-mix(in srgb, var(--lyn-text) 62%, transparent);
-    --m3-outline: color-mix(in srgb, var(--lyn-text) 12%, transparent);
-    --m3-outline-strong: color-mix(in srgb, var(--lyn-text) 24%, transparent);
-    --m3-accent: var(--lyn-accent);
-    --m3-accent-container: color-mix(in srgb, var(--lyn-accent) 24%, var(--lyn-bg));
-    --m3-on-accent: var(--lyn-bg);
-    --m3-state: color-mix(in srgb, var(--lyn-text) 8%, transparent);
-    --m3-state-strong: color-mix(in srgb, var(--lyn-text) 12%, transparent);
-    --m3-error: #ff897d;
-  }
   html {
     color: var(--lyn-text);
     background: transparent;

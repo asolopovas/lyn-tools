@@ -43,23 +43,49 @@ install_target() {
 	printf '%s\n' "$HOME/.local/bin/lyn"
 }
 
-stop_target() {
+target_pids() {
 	local target="$1"
-	local full_target
-	local exe
-	local running
-	local pid
+	local full_target exe running pid
 	full_target="$(canonical_path "$target")"
 	[ -d /proc ] || return 0
 	for exe in /proc/[0-9]*/exe; do
 		[ -e "$exe" ] || continue
 		running="$(readlink "$exe" 2>/dev/null || true)"
-		if [ "$running" = "$full_target" ]; then
+		case "$running" in
+		"$full_target" | "$full_target (deleted)")
 			pid="${exe#/proc/}"
-			pid="${pid%/exe}"
-			kill "$pid" 2>/dev/null || true
-		fi
+			printf '%s\n' "${pid%/exe}"
+			;;
+		esac
 	done
+}
+
+stop_target() {
+	local target="$1"
+	local pid waited
+	[ -n "$(target_pids "$target")" ] || return 0
+	for pid in $(target_pids "$target"); do
+		kill "$pid" 2>/dev/null || true
+	done
+	waited=0
+	while [ -n "$(target_pids "$target")" ] && [ "$waited" -lt 30 ]; do
+		sleep 0.1
+		waited=$((waited + 1))
+	done
+	for pid in $(target_pids "$target"); do
+		kill -9 "$pid" 2>/dev/null || true
+	done
+}
+
+is_running() {
+	[ -n "$(target_pids "$1")" ]
+}
+
+start_target() {
+	local target="$1"
+	[ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ] || return 0
+	is_running "$target" && return 0
+	setsid "$target" --start-hidden >/dev/null 2>&1 </dev/null &
 }
 
 desktop_exec_value() {
@@ -250,5 +276,6 @@ set_startup_config "$(config_file)"
 if command -v update-desktop-database >/dev/null 2>&1; then
 	update-desktop-database "$desktop_dir" >/dev/null 2>&1 || true
 fi
+start_target "$target"
 printf 'Installed Lyn to %s\n' "$target"
 printf 'Enabled Lyn startup with hidden background launch\n'
