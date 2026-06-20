@@ -160,22 +160,6 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
 
       <div class="flex min-w-0 flex-col gap-4">
         <UiSection title="Folders">
-          <template #actions>
-            <div class="flex items-center gap-2">
-              <UiButton variant="link" :disabled="scanning" @click="$emit('scan')">
-                {{ scanning ? "Scanning" : "Scan" }}
-              </UiButton>
-              <UiButton
-                variant="link"
-                :active="cfg.scanner.watch"
-                :aria-pressed="cfg.scanner.watch"
-                title="Automatically update the index on file changes"
-                @click="cfg.scanner.watch = !cfg.scanner.watch"
-              >
-                Watch
-              </UiButton>
-            </div>
-          </template>
           <UiCard>
             <UiPathRow
               v-for="(root, index) in cfg.scanner.roots"
@@ -230,12 +214,28 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
     </main>
 
     <nav
-      class="flex items-center justify-end gap-2 border-t border-(--m3-outline) bg-(--m3-surface) px-4 py-2.5"
+      class="flex items-center justify-between gap-2 border-t border-(--m3-outline) bg-(--m3-surface) px-4 py-2.5"
     >
-      <UiButton variant="text" @click="$emit('close')"> Cancel </UiButton>
-      <UiButton variant="filled" class="settings-save-button" @click="$emit('save')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.check" /></svg>Save
-      </UiButton>
+      <div class="flex items-center gap-2">
+        <UiButton variant="link" :disabled="scanning" @click="$emit('scan')">
+          {{ scanning ? "Scanning" : "Scan" }}
+        </UiButton>
+        <UiButton
+          variant="link"
+          :active="cfg.scanner.watch"
+          :aria-pressed="cfg.scanner.watch"
+          title="Automatically update the index on file changes"
+          @click="cfg.scanner.watch = !cfg.scanner.watch"
+        >
+          Watch
+        </UiButton>
+      </div>
+      <div class="flex items-center gap-2">
+        <UiButton variant="text" @click="$emit('close')"> Cancel </UiButton>
+        <UiButton variant="filled" class="settings-save-button" @click="$emit('save')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.check" /></svg>Save
+        </UiButton>
+      </div>
     </nav>
   </div>
 </template>
