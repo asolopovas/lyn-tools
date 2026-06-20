@@ -1,8 +1,6 @@
 frontend/node_modules
 frontend/dist/*
-!frontend/dist/index.html
-!frontend/dist/assets/
-!frontend/dist/assets/*
+!frontend/dist/.gitkeep
 frontend/wailsjs
 frontend/package.json.md5
 build/bin
