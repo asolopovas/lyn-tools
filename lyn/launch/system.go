@@ -6,10 +6,21 @@ import (
 	"strings"
 )
 
+const AdminToolPrefix = "lyn:system:admin:"
+
 var lookupUsername = currentUsername
+
+var adminScriptPath string
+
+func SetAdminScriptPath(path string) {
+	adminScriptPath = path
+}
 
 func systemCommand(path string, goos string) (launchCommand, error) {
 	key := strings.ToLower(strings.TrimSpace(path))
+	if tool, ok := strings.CutPrefix(key, AdminToolPrefix); ok {
+		return adminToolCommand(tool)
+	}
 	switch goos {
 	case "windows":
 		switch key {
@@ -44,6 +55,13 @@ func systemCommand(path string, goos string) (launchCommand, error) {
 		}
 	}
 	return launchCommand{}, errors.New("unknown system command")
+}
+
+func adminToolCommand(tool string) (launchCommand, error) {
+	if strings.TrimSpace(adminScriptPath) == "" {
+		return launchCommand{}, errors.New("system tools are unavailable: helper script is missing")
+	}
+	return launchCommand{Name: "x-terminal-emulator", Args: []string{"-e", adminScriptPath, tool}}, nil
 }
 
 func osascriptCommand(verb string) launchCommand {

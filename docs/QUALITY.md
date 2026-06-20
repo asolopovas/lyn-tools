@@ -57,6 +57,8 @@ For UI, launch, focus, hotkey, watcher, or platform changes, also:
 4. Check debug logs for expected stages and no errors.
 5. Restart and repeat if the fix changes lifecycle.
 
+Iterate UI and styling work under `just dev` (Wails hot reload), observing the live window. Do not rebuild and relaunch the binary for each frontend change. Reserve a full rebuild for backend, lifecycle, or final pre-handoff verification.
+
 ## Docs & cleanup
 
 - One fact, one place. State the current rule, not how it was found or the old behavior.

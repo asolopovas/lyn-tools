@@ -55,6 +55,10 @@ const themeKeys = computed(() => Object.keys(themes));
 const activeTheme = computed(() => themeByKey(cfg.value?.ui.theme ?? "power-run"));
 const selectedColor = computed(() => cfg.value?.ui.selectionColor || activeTheme.value.selected);
 const selectedTextColor = computed(() => readableTextColor(selectedColor.value));
+const backgroundOpacity = computed(() => cfg.value?.ui.backgroundOpacity ?? 0.98);
+const surfaceColor = computed(() =>
+  rgbaFromHex(activeTheme.value.background, backgroundOpacity.value),
+);
 const themeStyle = computed(() => ({
   "--lyn-bg": activeTheme.value.background,
   "--lyn-panel": activeTheme.value.panel,
@@ -65,7 +69,8 @@ const themeStyle = computed(() => ({
   "--lyn-accent": activeTheme.value.accent,
   "--lyn-selected": selectedColor.value,
   "--lyn-selected-text": selectedTextColor.value,
-  "--lyn-opacity": String(cfg.value?.ui.backgroundOpacity ?? 0.98),
+  "--lyn-opacity": String(backgroundOpacity.value),
+  "--lyn-surface": surfaceColor.value,
 }));
 const launcherHeight = computed(() => (settingsOpen.value ? settingsHeight : 306));
 const windowWidth = computed(() => (settingsOpen.value ? settingsWidth : launcherWidth));
@@ -165,6 +170,19 @@ async function closeSettings(): Promise<void> {
     return;
   }
   settingsOpen.value = false;
+}
+
+function rgbaFromHex(hex: string, opacity: number): string {
+  const match = /^#([\da-f]{6})$/i.exec(hex);
+  if (!match) {
+    return hex;
+  }
+  const value = Number.parseInt(match[1]!, 16);
+  const red = (value >> 16) & 255;
+  const green = (value >> 8) & 255;
+  const blue = value & 255;
+  const alpha = Math.min(Math.max(opacity, 0), 1);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 function readableTextColor(color: string): "#000000" | "#ffffff" {
@@ -357,11 +375,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="shell" :style="themeStyle">
+  <main class="min-h-screen box-border bg-transparent" :style="themeStyle">
     <section
       v-if="appReady"
-      class="launcher"
-      :class="{ 'settings-window': settingsOpen }"
+      class="relative box-border w-full overflow-hidden [--wails-draggable:no-drag]"
+      :class="settingsOpen ? 'block bg-bg' : 'rounded-md border border-line bg-surface'"
       :style="{
         width: '100%',
         height: `min(${launcherHeight}px, 100vh)`,
@@ -397,6 +415,7 @@ onUnmounted(() => {
         :status-line="statusLine"
         :scanning="scanning"
         :project-icons="projectIcons"
+        :platform="platform"
         @launch-selected="launchSelected"
         @open-settings="openSettings"
         @launch="launchDefault"

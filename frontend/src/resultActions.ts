@@ -42,11 +42,11 @@ export function systemCommandIcon(project: Project): IconName {
     case "lyn:system:logout":
       return "logout";
     default:
-      return "play";
+      return project.path.startsWith("lyn:system:admin:") ? "terminal" : "play";
   }
 }
 
-export function actionButtons(project: Project): ResultAction[] {
+export function actionButtons(project: Project, platform = ""): ResultAction[] {
   if (isSystemCommand(project)) {
     return [
       { action: "open", icon: systemCommandIcon(project), title: "Run system command (Enter)" },
@@ -55,5 +55,13 @@ export function actionButtons(project: Project): ResultAction[] {
   if (isPackagedWindowsApp(project)) {
     return [{ action: "open", icon: "openInNew", title: "Open app (Enter)" }];
   }
-  return isApp(project) ? appActions : projectActions;
+  if (!isApp(project)) {
+    return projectActions;
+  }
+  if (platform === "windows") {
+    return appActions;
+  }
+  return appActions.filter(
+    (action) => action.action !== "run-admin" && action.action !== "run-user",
+  );
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
@@ -63,6 +64,11 @@ func newWailsOptions(app *lyn.App) *options.App {
 			DisableWindowIcon:    true,
 			WindowClassName:      lyn.NativeWindowClassName,
 		},
+		Linux: &linux.Options{
+			WindowIsTranslucent: true,
+			WebviewGpuPolicy:    linux.WebviewGpuPolicyOnDemand,
+			ProgramName:         lyn.NativeWindowClassName,
+		},
 		OnStartup:     app.Startup,
 		OnShutdown:    app.Shutdown,
 		OnBeforeClose: app.BeforeClose,
@@ -80,6 +86,8 @@ func newWailsOptions(app *lyn.App) *options.App {
 		appOptions.Windows.WebviewIsTransparent = false
 		appOptions.Windows.WindowIsTranslucent = false
 		appOptions.Windows.WindowClassName = lyn.NativeSettingsWindowClassName
+		appOptions.Linux.WindowIsTranslucent = false
+		appOptions.Linux.ProgramName = lyn.NativeSettingsWindowClassName
 	}
 	return appOptions
 }

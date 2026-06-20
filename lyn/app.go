@@ -91,6 +91,7 @@ func (a *App) startup(ctx context.Context) {
 	} else {
 		a.debugLog("store.error", "error", err)
 	}
+	a.installSystemToolsScript()
 	if a.windowMode() == SettingsWindowMode {
 		a.markSettingsWindowActive()
 		placeWindow(a.ctx)

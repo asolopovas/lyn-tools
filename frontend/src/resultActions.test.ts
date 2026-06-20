@@ -22,15 +22,22 @@ describe("result actions", () => {
     ]);
   });
 
-  it("uses app actions for regular apps and open-only for packaged apps", () => {
-    expect(actionButtons(project("app")).map((button) => button.action)).toEqual([
+  it("uses full app actions on windows and open-only for packaged apps", () => {
+    expect(actionButtons(project("app"), "windows").map((button) => button.action)).toEqual([
       "run-admin",
       "run-user",
       "reveal",
       "terminal",
     ]);
-    expect(actionButtons(project("app", "shell:AppsFolder\\WhatsApp!App"))).toEqual([
+    expect(actionButtons(project("app", "shell:AppsFolder\\WhatsApp!App"), "windows")).toEqual([
       { action: "open", icon: "openInNew", title: "Open app (Enter)" },
+    ]);
+  });
+
+  it("drops windows-only elevation actions on other platforms", () => {
+    expect(actionButtons(project("app"), "linux").map((button) => button.action)).toEqual([
+      "reveal",
+      "terminal",
     ]);
   });
 

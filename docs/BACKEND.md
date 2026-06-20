@@ -32,6 +32,7 @@ Part of the [architecture map](../ARCHITECTURE.md).
 - The default (non-shortcut) list shows apps, system commands, and only the project folders, workspaces, and recents launched at least once. The workspace shortcut (`{`, `UI.WorkspaceQueryShortcut`) lists every folder, workspace, and recent (apps and commands excluded) so an unopened one is reachable to open the first time. When the shortcut is disabled, the default list shows everything.
 - Log Out / Restart / Shut Down are virtual `system-command` results (`lyn:system:{logout,restart,shutdown}`), added in memory by `indexProjects` and never saved. Opening the store also clears any stale rows as a safeguard.
 - Launch maps them to the real OS command (`shutdown.exe`, `systemctl`/`loginctl`, `osascript`). Windows runs `shutdown.exe` hidden.
+- On Linux, `systemCommandsFor` also adds CLI sysadmin tools (`lyn:system:admin:{monitor,logs,services,network,firewall,disk}`) as `system-command` results. The command bodies live only in `lyn/sysadmin/lyn-sysadmin.sh` (embedded, extracted to the cache dir at startup by `installSystemToolsScript`); launch opens `x-terminal-emulator -e <script> <tool>`, so the launcher never holds the command strings. The script keeps the terminal open and reports any missing tool.
 
 ## Scanning and detection
 
