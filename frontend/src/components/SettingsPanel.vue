@@ -5,14 +5,16 @@ import { themeByKey } from "../themes";
 import type { ElevationMode, ElevationStatus, LynConfig } from "../types";
 import UiButton from "./ui/UiButton.vue";
 import UiCard from "./ui/UiCard.vue";
-import UiCardRow from "./ui/UiCardRow.vue";
 import UiField from "./ui/UiField.vue";
 import UiIconButton from "./ui/UiIconButton.vue";
+import UiNavRow from "./ui/UiNavRow.vue";
+import UiOptionCard from "./ui/UiOptionCard.vue";
+import UiPathRow from "./ui/UiPathRow.vue";
 import UiSection from "./ui/UiSection.vue";
 import UiSelect from "./ui/UiSelect.vue";
 import UiSlider from "./ui/UiSlider.vue";
 import UiSwatch from "./ui/UiSwatch.vue";
-import UiToggle from "./ui/UiToggle.vue";
+import UiToggleRow from "./ui/UiToggleRow.vue";
 
 const cfg = defineModel<LynConfig>("cfg", { required: true });
 
@@ -99,48 +101,27 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
               >
               <UiSlider v-model="cfg.ui.backgroundOpacity" min="0.55" max="1" step="0.01" />
             </UiField>
-            <label
-              class="flex min-h-5 cursor-pointer items-center justify-between gap-3 px-3.5 py-2.5 text-[13px]/[18px] tracking-[0.1px] text-(--m3-on-surface)"
-            >
-              <span>Clear search on open</span>
-              <UiToggle v-model="cfg.ui.clearQueryOnShow" />
-            </label>
+            <UiToggleRow label="Clear search on open" v-model="cfg.ui.clearQueryOnShow" />
           </UiCard>
         </UiSection>
 
         <UiSection title="Shortcuts">
           <UiCard>
-            <button
-              class="settings-action-row relative flex min-h-11 items-center justify-between gap-3 rounded-none border-0 bg-transparent px-3.5 text-left transition-[background] duration-140 ease-[ease] hover:bg-(--m3-state) after:absolute after:inset-x-3.5 after:bottom-0 after:h-px after:bg-(--m3-outline) after:content-[''] last:after:hidden"
-              :class="{
-                'text-(--m3-accent)': recordingHotkey,
-                'text-(--m3-on-surface)': !recordingHotkey,
-              }"
+            <UiNavRow
+              as="button"
               type="button"
+              :icon="icons.keyboard"
+              label="Open launcher"
+              :active="recordingHotkey"
               @click="$emit('toggle-hotkey-recording')"
               @keydown="$emit('capture-hotkey', $event)"
             >
-              <span class="flex min-w-0 items-center gap-3 text-[13px]/[18px] tracking-[0.1px]"
-                ><span
-                  class="inline-flex text-(--m3-on-surface-variant) [&_svg]:size-5 [&_svg]:fill-current"
-                  ><svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path :d="icons.keyboard" /></svg></span
-                >Open launcher</span
-              >
               <code
                 class="flex-none rounded-md border-0 bg-(--m3-surface-container-highest) px-2.5 py-1.25 font-mono text-[12px]/4 text-(--m3-on-surface)"
                 >{{ recordingHotkey ? "Press keys" : cfg.hotkey.binding }}</code
               >
-            </button>
-            <label
-              class="settings-action-row relative flex min-h-11 items-center justify-between gap-3 rounded-none border-0 bg-transparent px-3.5 text-left text-(--m3-on-surface) transition-[background] duration-140 ease-[ease] hover:bg-(--m3-state) after:absolute after:inset-x-3.5 after:bottom-0 after:h-px after:bg-(--m3-outline) after:content-[''] last:after:hidden"
-            >
-              <span class="flex min-w-0 items-center gap-3 text-[13px]/[18px] tracking-[0.1px]"
-                ><span
-                  class="inline-flex text-(--m3-on-surface-variant) [&_svg]:size-5 [&_svg]:fill-current"
-                  ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.grid" /></svg></span
-                >Workspace key</span
-              >
+            </UiNavRow>
+            <UiNavRow :icon="icons.grid" label="Workspace key">
               <input
                 class="h-9 w-14 rounded-lg border border-(--m3-outline-strong) bg-(--m3-surface-container-high) px-3 text-center font-mono text-[12px]/4 text-(--m3-on-surface) focus:border-(--m3-accent) focus:shadow-[0_0_0_1px_var(--m3-accent)]"
                 v-model="cfg.ui.workspaceQueryShortcut"
@@ -148,80 +129,34 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
                 spellcheck="false"
                 @input="$emit('normalize-workspace-shortcut')"
               />
-            </label>
+            </UiNavRow>
           </UiCard>
         </UiSection>
 
-        <section v-if="platform === 'windows'" class="flex flex-col gap-1.5">
-          <h2
-            class="m-0 ml-1 text-[11px]/4 font-bold tracking-[0.55px] text-(--m3-accent) uppercase"
-          >
-            Process mode
-          </h2>
+        <UiSection v-if="platform === 'windows'" title="Process mode">
           <div class="grid grid-cols-2 gap-3">
-            <button
-              class="process-card relative grid min-h-23 gap-1 rounded-[14px] border bg-(--m3-surface-container) py-3 pr-10 pl-3.5 text-left text-(--m3-on-surface) transition-[background,border-color] duration-140 ease-[ease] hover:bg-(--m3-surface-container-high) disabled:cursor-default"
-              :class="
-                standardModeSelected
-                  ? 'border-transparent bg-(--m3-accent-container)! selected'
-                  : 'border-(--m3-outline)'
-              "
-              type="button"
+            <UiOptionCard
+              :icon="icons.account"
+              title="Standard"
+              description="Runs with normal privileges. Safer, but can't reach elevated apps."
+              :selected="standardModeSelected"
               :disabled="!elevationStatus?.canSwitch || elevationStatus?.mode === 'standard'"
-              @click="$emit('switch-elevation', 'standard')"
-            >
-              <span
-                v-if="standardModeSelected"
-                class="absolute top-0 right-0 grid size-6 place-items-center rounded-bl-xl bg-(--m3-accent) [&_svg]:size-3.5 [&_svg]:fill-(--m3-on-accent)"
-                aria-hidden="true"
-                ><svg viewBox="0 0 24 24"><path :d="icons.check" /></svg
-              ></span>
-              <span
-                class="inline-flex [&_svg]:size-6 [&_svg]:fill-current"
-                :class="
-                  standardModeSelected ? 'text-(--m3-accent)' : 'text-(--m3-on-surface-variant)'
-                "
-                ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.account" /></svg
-              ></span>
-              <strong class="text-(--m3-on-surface) text-sm/[18px] font-semibold">Standard</strong>
-              <small class="text-[12px]/4 whitespace-normal text-(--m3-on-surface-variant)"
-                >Runs with normal privileges. Safer, but can't reach elevated apps.</small
-              >
-            </button>
-            <button
-              class="process-card admin relative grid min-h-23 gap-1 rounded-[14px] border bg-(--m3-surface-container) py-3 pr-10 pl-3.5 text-left text-(--m3-on-surface) transition-[background,border-color] duration-140 ease-[ease] hover:bg-(--m3-surface-container-high) disabled:cursor-default"
-              :class="
-                adminModeSelected
-                  ? 'border-transparent bg-(--m3-accent-container)! selected'
-                  : 'border-(--m3-outline)'
-              "
-              type="button"
+              @select="$emit('switch-elevation', 'standard')"
+            />
+            <UiOptionCard
+              :icon="icons.shieldAccount"
+              title="Administrator"
+              description="Requires UAC. Can launch and reach elevated apps."
+              tone="error"
+              :selected="adminModeSelected"
               :disabled="!elevationStatus?.canSwitch || elevationStatus?.mode === 'admin'"
-              @click="$emit('switch-elevation', 'admin')"
-            >
-              <span
-                v-if="adminModeSelected"
-                class="absolute top-0 right-0 grid size-6 place-items-center rounded-bl-xl bg-(--m3-accent) [&_svg]:size-3.5 [&_svg]:fill-(--m3-on-accent)"
-                aria-hidden="true"
-                ><svg viewBox="0 0 24 24"><path :d="icons.check" /></svg
-              ></span>
-              <span
-                class="inline-flex [&_svg]:size-6 [&_svg]:fill-current"
-                :class="adminModeSelected ? 'text-(--m3-accent)' : 'text-(--m3-error)'"
-                ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.shieldAccount" /></svg
-              ></span>
-              <strong class="text-(--m3-on-surface) text-sm/[18px] font-semibold"
-                >Administrator</strong
-              >
-              <small class="text-[12px]/4 whitespace-normal text-(--m3-on-surface-variant)"
-                >Requires UAC. Can launch and reach elevated apps.</small
-              >
-            </button>
+              @select="$emit('switch-elevation', 'admin')"
+            />
             <small class="px-1 text-[12px]/4 whitespace-normal text-(--m3-on-surface-variant)">{{
               elevationStatus?.message ?? "Checking process mode"
             }}</small>
           </div>
-        </section>
+        </UiSection>
       </div>
 
       <div class="flex min-w-0 flex-col gap-4">
@@ -243,24 +178,12 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
             </div>
           </template>
           <UiCard>
-            <UiCardRow
+            <UiPathRow
               v-for="(root, index) in cfg.scanner.roots"
               :key="root"
-              class="root-row flex min-h-11 items-center justify-between gap-2.5 py-0! pr-1.5! pl-3.5! transition-[background] duration-140 ease-[ease] hover:bg-(--m3-state)"
-            >
-              <span
-                class="flex min-w-0 items-center gap-3 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px]/4 text-(--m3-on-surface) [&_svg]:size-5 [&_svg]:flex-none [&_svg]:fill-none [&_svg]:stroke-(--m3-on-surface-variant) [&_svg]:stroke-[1.8]"
-                ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.folder" /></svg
-                >{{ root }}</span
-              >
-              <UiIconButton
-                variant="danger"
-                title="Remove folder"
-                @click="$emit('remove-root', index)"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.delete" /></svg>
-              </UiIconButton>
-            </UiCardRow>
+              :path="root"
+              @remove="$emit('remove-root', index)"
+            />
             <p
               v-if="!cfg.scanner.roots.length"
               class="m-0 p-3.5 text-[12px]/4 tracking-[0.4px] text-(--m3-on-surface-variant)"
@@ -275,29 +198,13 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
 
         <UiSection v-if="wslPresent" title="WSL folders">
           <UiCard>
-            <UiCardRow
+            <UiPathRow
               v-for="(root, index) in cfg.scanner.wslRoots ?? []"
               :key="(root.distro ?? '') + root.path"
-              class="root-row flex min-h-11 items-center justify-between gap-2.5 py-0! pr-1.5! pl-3.5! transition-[background] duration-140 ease-[ease] hover:bg-(--m3-state)"
-            >
-              <span
-                class="flex min-w-0 items-center gap-3 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px]/4 text-(--m3-on-surface) [&_svg]:size-5 [&_svg]:flex-none [&_svg]:fill-none [&_svg]:stroke-(--m3-on-surface-variant) [&_svg]:stroke-[1.8]"
-                ><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.folder" /></svg
-                >{{ root.path
-                }}<small
-                  v-if="root.distro"
-                  class="ml-2 flex-none rounded-full bg-(--m3-surface-container-highest) px-2 py-0.5 text-[10px]/[14px] text-(--m3-on-surface-variant)"
-                  >{{ root.distro }}</small
-                ></span
-              >
-              <UiIconButton
-                variant="danger"
-                title="Remove folder"
-                @click="$emit('remove-wsl-root', index)"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path :d="icons.delete" /></svg>
-              </UiIconButton>
-            </UiCardRow>
+              :path="root.path"
+              :badge="root.distro"
+              @remove="$emit('remove-wsl-root', index)"
+            />
             <p
               v-if="!cfg.scanner.wslRoots?.length"
               class="m-0 p-3.5 text-[12px]/4 tracking-[0.4px] text-(--m3-on-surface-variant)"
@@ -312,18 +219,12 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
 
         <UiSection title="Startup">
           <UiCard>
-            <label
-              class="flex min-h-5 cursor-pointer items-center justify-between gap-3 px-3.5 py-2.5 text-[13px]/[18px] tracking-[0.1px] text-(--m3-on-surface)"
-            >
-              <span>Start Lyn with the system</span>
-              <UiToggle v-model="cfg.startup.enabled" />
-            </label>
-            <label
-              class="flex min-h-5 cursor-pointer items-center justify-between gap-3 px-3.5 py-2.5 text-[13px]/[18px] tracking-[0.1px] text-(--m3-on-surface)"
-            >
-              <span>Run in background</span>
-              <UiToggle v-model="cfg.startup.startHidden" :disabled="!cfg.startup.enabled" />
-            </label>
+            <UiToggleRow label="Start Lyn with the system" v-model="cfg.startup.enabled" />
+            <UiToggleRow
+              label="Run in background"
+              v-model="cfg.startup.startHidden"
+              :disabled="!cfg.startup.enabled"
+            />
           </UiCard>
         </UiSection>
       </div>
