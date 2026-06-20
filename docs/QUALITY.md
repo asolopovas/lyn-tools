@@ -4,24 +4,20 @@ Applies to every change. Prefer mechanical enforcement over reminders.
 
 ## Principles
 
-- Keep changes small, reversible, and test-covered.
+- Keep changes small and test-covered.
 - Every bug fix adds a regression test, or a note on why it can't.
 - Encode decisions in docs, tests, schemas, or plans, not hidden knowledge.
-- No dead code, unused abstractions, speculative layers, or duplicated launch/hotkey logic.
-- Before writing a second copy, extract repeated logic into a named helper, reusing nearby ones first.
-- Validate external data at boundaries.
+- No dead code, unused abstractions, speculative layers, or duplicated logic.
+- Embrace reusability by extracting and reusing repeated logic.
 - Use structured logs for lifecycle, platform, launch, scan, watcher, and UI-bridge failures.
 
 ## Go
 
-- Write idiomatic, simple Go, not clever generic or interface-heavy designs.
-- Pass `context.Context` first for cancellable work.
+- Write idiomatic, not clever generic or interface-heavy designs.
 - Bound goroutines with cancellation, timeouts, or owned shutdown.
 - Never use sleeps for test correctness, only channels, contexts, polling with deadlines, or fakes.
-- Wrap errors with operation context.
 - Log before swallowing platform API failures.
 - Keep interfaces small and consumer-owned, returning concrete types unless a consumer must swap implementations.
-- Prefer immutable tables, protecting any mutable package state with locks or atomics.
 - Use build tags for platform behavior, with non-target fallbacks as explicit no-ops or a returned unsupported-platform error.
 - Table-test parsing, ranking, path conversion, launch-command building, and platform decisions.
 - Keep tests generic with `example`, `examplehost`, and temp paths, never real user, host, company, domain, SSH-alias, project, or filesystem names.
