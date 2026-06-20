@@ -92,7 +92,7 @@ The 14 primitives in `frontend/src/components/ui/`. APIs are the real `definePro
 
 | Component | API | Pattern |
 |---|---|---|
-| `UiButton` | `variant: "text" \| "filled" \| "link" \| "add"`, `active`, `disabled` | Pill, 34px. `filled` = accent bg + on-accent text; `text` = transparent, accent text, `--m3-state` hover; `link` = outlined toggle, accent-filled when `active`; `add` = outlined with a `+`. `disabled:opacity-45`. |
+| `UiButton` | `variant: "text" \| "filled" \| "link" \| "add"`, `active`, `disabled` | 10px radius, 36px, semibold. Press nudges down 1px. `filled` = accent bg + on-accent text with tactile depth (hairline top highlight + soft shadow; hover lightens accent toward white); `text` = transparent, accent text, `--m3-state` hover; `link` = outlined toggle, accent-filled (with depth) when `active`; `add` = outlined with a `+`. `disabled:opacity-45`. |
 | `UiIconButton` | `variant: "default" \| "danger"` | 32px circular, transparent. Icon tinted `--m3-on-surface-variant`; hover wash + tint to `--m3-on-surface` (default) or `--m3-error` (danger). SVG sized 18–20px. |
 | `UiCard` | children | Container: `rounded-[14px]`, `bg-(--m3-surface-container)`, `overflow-hidden`, column flex. Wraps rows. |
 | `UiCardRow` | `as: "div" \| "label"` | A row inside a card with the inset hairline divider; `14px/10px` padding. |
