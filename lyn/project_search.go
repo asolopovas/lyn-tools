@@ -12,10 +12,37 @@ const (
 	minLooseTermPart = 2
 )
 
+const (
+	scoreExact = iota
+	scoreNamePrefix
+	scoreWordPrefix
+	scoreLabelSubstr
+	scoreTextSubstr
+	scoreAllTerms
+	scoreApprox
+	scoreSubseq
+)
+
+const (
+	bonusBoundary = 16
+	bonusCamel    = 12
+	bonusConsec   = 8
+	penaltyGap    = 2
+)
+
 type searchProject struct {
+	project    Project
+	text       string
+	words      []string
+	label      string
+	labelRaw   string
+	labelWords []string
+}
+
+type scoredProject struct {
 	project Project
-	text    string
-	words   []string
+	rank    int
+	quality int
 }
 
 func searchProjects(projects []Project, query string, workspaceShortcut string) []Project {
@@ -41,22 +68,28 @@ func searchProjectIndex(index []searchProject, query string, workspaceShortcut s
 	if workspaceMode {
 		text = strings.ToLower(strings.TrimSpace(raw[len(workspaceShortcut):]))
 	}
-	tiers := [3][]Project{}
+	scored := make([]scoredProject, 0, len(index))
 	for _, item := range index {
 		if !includeInSearch(item.project, workspaceMode, workspaceEnabled) {
 			continue
 		}
-		score := projectSearchScore(item, text)
-		if score == noSearchMatch || len(tiers[score]) == maxSearchMatches {
+		rank, quality := projectSearchScore(item, text)
+		if rank == noSearchMatch {
 			continue
 		}
-		tiers[score] = append(tiers[score], item.project)
+		scored = append(scored, scoredProject{project: item.project, rank: rank, quality: quality})
 	}
+	slices.SortStableFunc(scored, func(a, b scoredProject) int {
+		if a.rank != b.rank {
+			return a.rank - b.rank
+		}
+		return b.quality - a.quality
+	})
 	result := make([]Project, 0, maxSearchMatches)
-	for _, tier := range tiers {
-		result = append(result, tier...)
-		if len(result) >= maxSearchMatches {
-			return result[:maxSearchMatches]
+	for _, item := range scored {
+		result = append(result, item.project)
+		if len(result) == maxSearchMatches {
+			break
 		}
 	}
 	return result
@@ -64,14 +97,58 @@ func searchProjectIndex(index []searchProject, query string, workspaceShortcut s
 
 func newSearchProject(project Project) searchProject {
 	text := project.Name + " " + project.DisplayName + " " + project.Kind + " " + project.Path
-	return searchProject{project: project, text: strings.ToLower(text), words: searchWords(text)}
+	labelRaw := strings.TrimSpace(project.Name + " " + project.DisplayName)
+	label := strings.ToLower(labelRaw)
+	return searchProject{
+		project:    project,
+		text:       strings.ToLower(text),
+		words:      searchWords(text),
+		label:      label,
+		labelRaw:   labelRaw,
+		labelWords: searchWords(label),
+	}
 }
 
-func projectSearchScore(item searchProject, text string) int {
-	if text == "" || strings.Contains(item.text, text) {
-		return 0
+func projectSearchScore(item searchProject, text string) (int, int) {
+	if text == "" {
+		return scoreExact, 0
 	}
+	if score := labelScore(item, text); score != noSearchMatch {
+		return score, 0
+	}
+	if strings.Contains(item.text, text) {
+		return scoreTextSubstr, 0
+	}
+	if rank := termScore(item, text); rank != noSearchMatch {
+		return rank, 0
+	}
+	if quality, ok := subsequenceScore(item, text); ok {
+		return scoreSubseq, quality
+	}
+	return noSearchMatch, 0
+}
+
+func labelScore(item searchProject, text string) int {
+	if item.label == text {
+		return scoreExact
+	}
+	if strings.HasPrefix(item.label, text) {
+		return scoreNamePrefix
+	}
+	if slices.ContainsFunc(item.labelWords, func(word string) bool { return strings.HasPrefix(word, text) }) {
+		return scoreWordPrefix
+	}
+	if strings.Contains(item.label, text) {
+		return scoreLabelSubstr
+	}
+	return noSearchMatch
+}
+
+func termScore(item searchProject, text string) int {
 	words := searchWords(text)
+	if len(words) == 0 {
+		return noSearchMatch
+	}
 	approximate := false
 	for _, term := range words {
 		if termInWords(item.words, term) {
@@ -88,9 +165,66 @@ func projectSearchScore(item searchProject, text string) int {
 		return noSearchMatch
 	}
 	if approximate {
-		return 2
+		return scoreApprox
 	}
-	return 1
+	return scoreAllTerms
+}
+
+func subsequenceScore(item searchProject, text string) (int, bool) {
+	query := strings.ReplaceAll(text, " ", "")
+	if query == "" {
+		return 0, false
+	}
+	return fuzzyMatchScore(item.labelRaw, query)
+}
+
+func fuzzyMatchScore(target string, query string) (int, bool) {
+	chars := []rune(target)
+	wanted := []rune(query)
+	score := 0
+	at := 0
+	previous := -1
+	for _, q := range wanted {
+		found := -1
+		for ; at < len(chars); at++ {
+			if unicode.ToLower(chars[at]) == unicode.ToLower(q) {
+				found = at
+				break
+			}
+		}
+		if found == -1 {
+			return 0, false
+		}
+		score += charMatchScore(chars, found, found == previous+1)
+		previous = found
+		at = found + 1
+	}
+	return score, true
+}
+
+func charMatchScore(chars []rune, at int, consecutive bool) int {
+	score := 1
+	switch {
+	case at == 0 || isSearchSeparator(chars[at-1]):
+		score += bonusBoundary
+	case unicode.IsLower(chars[at-1]) && unicode.IsUpper(chars[at]):
+		score += bonusCamel
+	}
+	if consecutive {
+		score += bonusConsec
+	} else if at > 0 {
+		score -= penaltyGap
+	}
+	return score
+}
+
+func isSearchSeparator(r rune) bool {
+	switch r {
+	case ' ', '/', '\\', '-', '_', '.':
+		return true
+	default:
+		return false
+	}
 }
 
 func termInWords(words []string, term string) bool {

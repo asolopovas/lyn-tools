@@ -29,6 +29,50 @@ func TestSearchProjectsRanksWorkspacesAboveFolders(t *testing.T) {
 	}
 }
 
+func TestSearchProjectsRanksNamePrefixAbovePathMatch(t *testing.T) {
+	projects := []Project{
+		{Name: "Alpha", Path: `/opt/widgets/alpha`, Kind: projectKindApp, UsageCount: 50},
+		{Name: "Widget", Path: `/opt/alpha/widget`, Kind: projectKindApp, UsageCount: 1},
+	}
+	matches := searchProjects(projects, "wi", "{")
+	if len(matches) < 2 || matches[0].Name != "Widget" {
+		t.Fatalf("expected name prefix ranked above path match, got %#v", matches)
+	}
+}
+
+func TestSearchProjectsRanksNamePrefixByUsage(t *testing.T) {
+	projects := []Project{
+		{Name: "Widgetbar", Path: `/opt/widgetbar`, Kind: projectKindApp, UsageCount: 2},
+		{Name: "Widgetbox", Path: `/opt/widgetbox`, Kind: projectKindApp, UsageCount: 9},
+	}
+	matches := searchProjects(projects, "wi", "{")
+	if len(matches) < 2 || matches[0].Name != "Widgetbox" {
+		t.Fatalf("expected most-used prefix match first, got %#v", matches)
+	}
+}
+
+func TestSearchProjectsMatchesSubsequence(t *testing.T) {
+	projects := []Project{
+		{Name: "Widescribe", Path: `/opt/widescribe`, Kind: projectKindApp},
+		{Name: "Notepad", Path: `/opt/notepad`, Kind: projectKindApp},
+	}
+	matches := searchProjects(projects, "wdscrb", "{")
+	if len(matches) != 1 || matches[0].Name != "Widescribe" {
+		t.Fatalf("expected subsequence match for Widescribe, got %#v", matches)
+	}
+}
+
+func TestSearchProjectsSubsequenceRanksTighterMatchFirst(t *testing.T) {
+	projects := []Project{
+		{Name: "Wonderful Diagnostic Scribe", Path: `/opt/wds`, Kind: projectKindApp, UsageCount: 9},
+		{Name: "Widescribe", Path: `/opt/widescribe`, Kind: projectKindApp, UsageCount: 1},
+	}
+	matches := searchProjects(projects, "wdscrb", "{")
+	if len(matches) < 2 || matches[0].Name != "Widescribe" {
+		t.Fatalf("expected the tighter subsequence match first, got %#v", matches)
+	}
+}
+
 func TestSearchProjectsMatchesTypos(t *testing.T) {
 	projects := []Project{
 		{Name: "Calendar", Path: "/calendar", Kind: projectKindApp},
