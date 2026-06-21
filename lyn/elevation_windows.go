@@ -12,18 +12,13 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-const (
-	windowsShellShowNormal = 1
-	windowsShellHide       = 0
-)
+const windowsShellShowNormal = 1
 
 var elevationShellExecute = syscall.NewLazyDLL("shell32.dll").NewProc("ShellExecuteW")
 
 func init() {
 	detectElevationStatus = detectWindowsElevationStatus
 	startElevationProcess = startWindowsElevationProcess
-	newAdminLaunchSession = newWindowsAdminLaunchSession
-	runElevatedHelper = runWindowsElevatedHelper
 }
 
 func detectWindowsElevationStatus() ElevationStatus {

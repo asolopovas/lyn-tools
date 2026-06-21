@@ -24,17 +24,7 @@ var (
 	startElevationProcess = func(string, []string) error {
 		return errors.New("elevation switching is available on Windows")
 	}
-	newAdminLaunchSession = func(launchFunc, func(string, ...any)) *adminSession {
-		return nil
-	}
-	runElevatedHelper = func(string) error {
-		return errors.New("elevated helper is only supported on Windows")
-	}
 )
-
-func RunElevatedHelper(pipeName string) error {
-	return runElevatedHelper(pipeName)
-}
 
 func (a *App) ElevationStatus() ElevationStatus {
 	return detectElevationStatus()

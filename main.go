@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"slices"
-	"strings"
 
 	"lyn.tools/launcher/lyn"
 
@@ -16,12 +15,6 @@ import (
 )
 
 func main() {
-	if pipeName, ok := elevatedHelperArg(os.Args[1:]); ok {
-		if err := lyn.RunElevatedHelper(pipeName); err != nil {
-			log.Fatal(err)
-		}
-		return
-	}
 	debug := lyn.NewDebugLogger(os.Args[1:])
 	initialConfig, configErr := lyn.LoadConfig("")
 	setupCrashLog(initialConfig.Cache.Dir)
@@ -94,16 +87,6 @@ func newWailsOptions(app *lyn.App) *options.App {
 
 func startHiddenArg(args []string) bool {
 	return slices.Contains(args, "--start-hidden")
-}
-
-func elevatedHelperArg(args []string) (string, bool) {
-	const prefix = "--elevated-helper="
-	for _, arg := range args {
-		if name, ok := strings.CutPrefix(arg, prefix); ok {
-			return name, true
-		}
-	}
-	return "", false
 }
 
 func windowModeFromArgs(args []string) lyn.WindowMode {

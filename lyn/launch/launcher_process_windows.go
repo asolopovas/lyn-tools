@@ -14,12 +14,15 @@ import (
 )
 
 const (
-	windowsDetachedProcess = 0x00000008
-	windowsShellShowNormal = 1
+	windowsDetachedProcess   = 0x00000008
+	windowsShellShowNormal   = 1
+	logonWithProfile         = 0x00000001
+	createUnicodeEnvironment = 0x00000400
 )
 
 var (
 	windowsShellExecute          = syscall.NewLazyDLL("shell32.dll").NewProc("ShellExecuteW")
+	procCreateProcessWithToken   = syscall.NewLazyDLL("advapi32.dll").NewProc("CreateProcessWithTokenW")
 	user32                       = syscall.NewLazyDLL("user32.dll")
 	procGetShellWindow           = user32.NewProc("GetShellWindow")
 	procGetWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
@@ -68,21 +71,8 @@ func startProcessForUser(cmd launchCommand, action string) error {
 		process := exec.Command(cmd.Name, cmd.Args...)
 		return startBackgroundProcess(process, action)
 	}
-	if action == "code" {
-		if cli, ok := windowsCodeCLIPath(); ok {
-			return startProcessAsShellUser("cmd.exe", append([]string{"/c", cli}, cmd.Args...), true)
-		}
-	}
 	hide := action != "terminal" && action != "code"
 	return startProcessAsShellUser(cmd.Name, cmd.Args, hide)
-}
-
-func windowsCodeCLIPath() (string, bool) {
-	path, err := exec.LookPath("code")
-	if err != nil {
-		return "", false
-	}
-	return path, true
 }
 
 func startBackgroundProcess(process *exec.Cmd, action string) error {
@@ -111,47 +101,74 @@ func processIsElevated() bool {
 }
 
 func startProcessAsShellUser(name string, args []string, hide bool) error {
-	pid, err := shellProcessID()
+	token, err := shellUserToken()
 	if err != nil {
 		return err
 	}
-	parent, err := windows.OpenProcess(windows.PROCESS_CREATE_PROCESS, false, pid)
-	if err != nil {
-		return fmt.Errorf("open shell process: %w", err)
-	}
-	defer windows.CloseHandle(parent)
-
-	attributes, err := windows.NewProcThreadAttributeList(1)
-	if err != nil {
-		return err
-	}
-	defer attributes.Delete()
-	if err := attributes.Update(windows.PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, unsafe.Pointer(&parent), unsafe.Sizeof(parent)); err != nil {
-		return err
+	defer token.Close()
+	if token.IsElevated() {
+		return errors.New("shell token is elevated; refusing to launch as the user")
 	}
 
-	commandLine, err := windows.UTF16PtrFromString(buildCommandLine(name, args))
+	commandLine, err := windows.UTF16FromString(buildCommandLine(name, args))
+	if err != nil {
+		return err
+	}
+	desktop, err := windows.UTF16PtrFromString(`winsta0\default`)
 	if err != nil {
 		return err
 	}
 
-	var startup windows.StartupInfoEx
-	startup.StartupInfo.Cb = uint32(unsafe.Sizeof(startup))
-	startup.ProcThreadAttributeList = attributes.List()
-	flags := uint32(windows.EXTENDED_STARTUPINFO_PRESENT)
+	var startup windows.StartupInfo
+	startup.Cb = uint32(unsafe.Sizeof(startup))
+	startup.Desktop = desktop
+	flags := uint32(createUnicodeEnvironment)
 	if hide {
-		startup.StartupInfo.Flags = windows.STARTF_USESHOWWINDOW
-		startup.StartupInfo.ShowWindow = windows.SW_HIDE
+		startup.Flags = windows.STARTF_USESHOWWINDOW
+		startup.ShowWindow = windows.SW_HIDE
 		flags |= windows.CREATE_NO_WINDOW
 	}
 
 	var info windows.ProcessInformation
-	if err := windows.CreateProcess(nil, commandLine, nil, nil, false, flags, nil, nil, &startup.StartupInfo, &info); err != nil {
-		return fmt.Errorf("launch as user: %w", err)
+	ret, _, callErr := procCreateProcessWithToken.Call(
+		uintptr(token),
+		logonWithProfile,
+		0,
+		uintptr(unsafe.Pointer(&commandLine[0])),
+		uintptr(flags),
+		0,
+		0,
+		uintptr(unsafe.Pointer(&startup)),
+		uintptr(unsafe.Pointer(&info)),
+	)
+	if ret == 0 {
+		return fmt.Errorf("launch as user: %w", callErr)
 	}
 	_ = windows.CloseHandle(info.Thread)
 	_ = windows.CloseHandle(info.Process)
 	return nil
+}
+
+func shellUserToken() (windows.Token, error) {
+	pid, err := shellProcessID()
+	if err != nil {
+		return 0, err
+	}
+	proc, err := windows.OpenProcess(windows.PROCESS_QUERY_INFORMATION, false, pid)
+	if err != nil {
+		return 0, fmt.Errorf("open shell process: %w", err)
+	}
+	defer windows.CloseHandle(proc)
+	var shellToken windows.Token
+	if err := windows.OpenProcessToken(proc, windows.TOKEN_DUPLICATE|windows.TOKEN_QUERY|windows.TOKEN_ASSIGN_PRIMARY|windows.TOKEN_ADJUST_DEFAULT|windows.TOKEN_ADJUST_SESSIONID, &shellToken); err != nil {
+		return 0, err
+	}
+	defer shellToken.Close()
+	var primary windows.Token
+	if err := windows.DuplicateTokenEx(shellToken, windows.TOKEN_ALL_ACCESS, nil, windows.SecurityImpersonation, windows.TokenPrimary, &primary); err != nil {
+		return 0, err
+	}
+	return primary, nil
 }
 
 func shellProcessID() (uint32, error) {
