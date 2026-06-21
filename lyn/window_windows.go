@@ -4,27 +4,38 @@ package lyn
 
 import (
 	"os"
+	"sync"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
 const (
-	swHide         = 0
-	swShownormal   = 1
-	vkLbutton      = 0x01
-	vkRbutton      = 0x02
-	vkMbutton      = 0x04
-	vkShift        = 0x10
-	vkControl      = 0x11
-	vkMenu         = 0x12
-	wsExToolwindow = 0x00000080
-	wsExAppwindow  = 0x00040000
-	wmClose        = 0x0010
-	wmSyscommand   = 0x0112
-	scClose        = 0xF060
-	scMask         = 0xFFF0
+	swHide          = 0
+	swShownormal    = 1
+	vkLbutton       = 0x01
+	vkRbutton       = 0x02
+	vkMbutton       = 0x04
+	vkShift         = 0x10
+	vkControl       = 0x11
+	vkMenu          = 0x12
+	wsExToolwindow  = 0x00000080
+	wsExAppwindow   = 0x00040000
+	wsSysmenu       = 0x00080000
+	wsMinimizebox   = 0x00020000
+	wsMaximizebox   = 0x00010000
+	wmClose         = 0x0010
+	wmSyscommand    = 0x0112
+	scClose         = 0xF060
+	scMask          = 0xFFF0
+	swpNoSize       = 0x0001
+	swpNoMove       = 0x0002
+	swpNoZorder     = 0x0004
+	swpNoActivate   = 0x0010
+	swpFrameChanged = 0x0020
 )
+
+var gwlStyle = ^uintptr(15)
 
 var gwlExstyle = ^uintptr(19)
 
@@ -52,6 +63,7 @@ var (
 	procGetWindowRect            = user32.NewProc("GetWindowRect")
 	procGetAsyncKeyState         = user32.NewProc("GetAsyncKeyState")
 	procCallWindowProc           = user32.NewProc("CallWindowProcW")
+	procSetWindowPos             = user32.NewProc("SetWindowPos")
 )
 
 var (
@@ -152,6 +164,17 @@ func configureWindowsWindowAppearance() {
 		return
 	}
 	hideWindowsWindowFromTaskbar(hwnd)
+	removeWindowsCaptionButtons(hwnd)
+}
+
+func removeWindowsCaptionButtons(hwnd windows.Handle) {
+	style, _, _ := procGetWindowLongPtr.Call(uintptr(hwnd), gwlStyle)
+	updated := style &^ (wsSysmenu | wsMinimizebox | wsMaximizebox)
+	if updated == style {
+		return
+	}
+	procSetWindowLongPtr.Call(uintptr(hwnd), gwlStyle, updated)
+	procSetWindowPos.Call(uintptr(hwnd), 0, 0, 0, 0, 0, swpNoMove|swpNoSize|swpNoZorder|swpNoActivate|swpFrameChanged)
 }
 
 func prepareWindowsWindowActivation() {
@@ -280,19 +303,28 @@ func detachInputThreads(currentThread uintptr, threads []uintptr) {
 	}
 }
 
+var (
+	webviewHostMu       sync.Mutex
+	webviewHostFound    windows.Handle
+	webviewHostCallback = windows.NewCallback(webviewHostEnumProc)
+)
+
+func webviewHostEnumProc(child windows.Handle, lparam uintptr) uintptr {
+	visible, _, _ := procIsWindowVisible.Call(uintptr(child))
+	if visible != 0 && windowClass(child) == "Chrome_WidgetWin_1" {
+		webviewHostFound = child
+		return 0
+	}
+	return 1
+}
+
 func webviewHostWindow(hwnd windows.Handle) windows.Handle {
-	var found windows.Handle
-	callback := windows.NewCallback(func(child windows.Handle, lparam uintptr) uintptr {
-		visible, _, _ := procIsWindowVisible.Call(uintptr(child))
-		if visible != 0 && windowClass(child) == "Chrome_WidgetWin_1" {
-			found = child
-			return 0
-		}
-		return 1
-	})
-	procEnumChildWindows.Call(uintptr(hwnd), callback, 0)
-	if found != 0 {
-		return found
+	webviewHostMu.Lock()
+	defer webviewHostMu.Unlock()
+	webviewHostFound = 0
+	procEnumChildWindows.Call(uintptr(hwnd), webviewHostCallback, 0)
+	if webviewHostFound != 0 {
+		return webviewHostFound
 	}
 	return hwnd
 }
@@ -306,35 +338,47 @@ func windowClass(hwnd windows.Handle) string {
 	return windows.UTF16ToString(buffer[:length])
 }
 
-func currentProcessWindow() windows.Handle {
-	pid := uint32(os.Getpid())
-	var classMatch windows.Handle
-	var visibleMatch windows.Handle
-	var processMatch windows.Handle
-	callback := windows.NewCallback(func(hwnd windows.Handle, lparam uintptr) uintptr {
-		var windowPID uint32
-		procGetWindowThreadProcessID.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&windowPID)))
-		if windowPID != pid {
-			return 1
-		}
-		if processMatch == 0 {
-			processMatch = hwnd
-		}
-		if isWindowHandleVisible(hwnd) && visibleMatch == 0 {
-			visibleMatch = hwnd
-		}
-		if windowClass(hwnd) == NativeWindowClassName {
-			classMatch = hwnd
-			return 0
-		}
+var (
+	currentWindowMu       sync.Mutex
+	currentWindowPID      uint32
+	currentWindowClass    windows.Handle
+	currentWindowVisible  windows.Handle
+	currentWindowProcess  windows.Handle
+	currentWindowCallback = windows.NewCallback(currentProcessWindowEnumProc)
+)
+
+func currentProcessWindowEnumProc(hwnd windows.Handle, lparam uintptr) uintptr {
+	var windowPID uint32
+	procGetWindowThreadProcessID.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&windowPID)))
+	if windowPID != currentWindowPID {
 		return 1
-	})
-	procEnumWindows.Call(callback, 0)
-	if classMatch != 0 {
-		return classMatch
 	}
-	if visibleMatch != 0 {
-		return visibleMatch
+	if currentWindowProcess == 0 {
+		currentWindowProcess = hwnd
 	}
-	return processMatch
+	if isWindowHandleVisible(hwnd) && currentWindowVisible == 0 {
+		currentWindowVisible = hwnd
+	}
+	if windowClass(hwnd) == NativeWindowClassName {
+		currentWindowClass = hwnd
+		return 0
+	}
+	return 1
+}
+
+func currentProcessWindow() windows.Handle {
+	currentWindowMu.Lock()
+	defer currentWindowMu.Unlock()
+	currentWindowPID = uint32(os.Getpid())
+	currentWindowClass = 0
+	currentWindowVisible = 0
+	currentWindowProcess = 0
+	procEnumWindows.Call(currentWindowCallback, 0)
+	if currentWindowClass != 0 {
+		return currentWindowClass
+	}
+	if currentWindowVisible != 0 {
+		return currentWindowVisible
+	}
+	return currentWindowProcess
 }
