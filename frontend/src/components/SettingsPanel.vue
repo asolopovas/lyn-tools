@@ -8,12 +8,12 @@ import UiCard from "./ui/UiCard.vue";
 import UiField from "./ui/UiField.vue";
 import UiIconButton from "./ui/UiIconButton.vue";
 import UiNavRow from "./ui/UiNavRow.vue";
-import UiOptionCard from "./ui/UiOptionCard.vue";
 import UiPathRow from "./ui/UiPathRow.vue";
 import UiSection from "./ui/UiSection.vue";
 import UiSelect from "./ui/UiSelect.vue";
 import UiSlider from "./ui/UiSlider.vue";
 import UiSwatch from "./ui/UiSwatch.vue";
+import UiToggle from "./ui/UiToggle.vue";
 import UiToggleRow from "./ui/UiToggleRow.vue";
 
 const cfg = defineModel<LynConfig>("cfg", { required: true });
@@ -45,7 +45,6 @@ const themeOptions = computed(() =>
   props.themeKeys.map((key) => ({ value: key, label: themeByKey(key).name })),
 );
 const opacityPercent = computed(() => `${Math.round(cfg.value.ui.backgroundOpacity * 100)}%`);
-const standardModeSelected = computed(() => props.elevationStatus?.mode !== "admin");
 const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin");
 </script>
 
@@ -133,28 +132,39 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
         </UiSection>
 
         <UiSection v-if="platform === 'windows'" title="Process mode">
-          <div class="grid grid-cols-2 gap-3">
-            <UiOptionCard
-              :icon="icons.account"
-              title="Standard"
-              description="Runs with normal privileges. Safer, but can't reach elevated apps."
-              :selected="standardModeSelected"
-              :disabled="!elevationStatus?.canSwitch || elevationStatus?.mode === 'standard'"
-              @select="$emit('switch-elevation', 'standard')"
-            />
-            <UiOptionCard
-              :icon="icons.shieldAccount"
-              title="Administrator"
-              description="Requires UAC. Can launch and reach elevated apps."
-              tone="error"
-              :selected="adminModeSelected"
-              :disabled="!elevationStatus?.canSwitch || elevationStatus?.mode === 'admin'"
-              @select="$emit('switch-elevation', 'admin')"
-            />
-            <small class="px-1 text-[12px]/4 whitespace-normal text-(--m3-on-surface-variant)">{{
-              elevationStatus?.message ?? "Checking process mode"
-            }}</small>
-          </div>
+          <UiCard>
+            <label
+              class="flex items-center justify-between gap-3 px-3.5 py-2.5"
+              :class="elevationStatus?.canSwitch ? 'cursor-pointer' : 'cursor-default opacity-50'"
+            >
+              <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="flex items-center gap-2 text-[13px]/[18px] text-(--m3-on-surface)">
+                  <svg
+                    class="size-[18px] flex-none"
+                    :class="
+                      adminModeSelected ? 'fill-(--m3-error)' : 'fill-(--m3-on-surface-variant)'
+                    "
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path :d="icons.shieldAccount" />
+                  </svg>
+                  Run as administrator
+                </span>
+                <small class="text-[12px]/4 whitespace-normal text-(--m3-on-surface-variant)">{{
+                  elevationStatus?.message ??
+                  (adminModeSelected
+                    ? "Elevated — reaches admin apps (UAC)."
+                    : "Standard privileges. Safer.")
+                }}</small>
+              </span>
+              <UiToggle
+                :model-value="adminModeSelected"
+                :disabled="!elevationStatus?.canSwitch"
+                @update:model-value="$emit('switch-elevation', $event ? 'admin' : 'standard')"
+              />
+            </label>
+          </UiCard>
         </UiSection>
       </div>
 
@@ -202,7 +212,7 @@ const adminModeSelected = computed(() => props.elevationStatus?.mode === "admin"
 
         <UiSection title="Startup">
           <UiCard>
-            <UiToggleRow label="Start Lyn with the system" v-model="cfg.startup.enabled" />
+            <UiToggleRow label="Start on system startup" v-model="cfg.startup.enabled" />
             <UiToggleRow
               label="Run in background"
               v-model="cfg.startup.startHidden"
