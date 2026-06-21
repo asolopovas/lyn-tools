@@ -156,6 +156,14 @@ package-deb: _frontend-build
 package-windows: build
     & (Join-Path "{{ justfile_directory() }}" "scripts/release-windows.ps1") package-windows
 
+[windows]
+dev-sign-setup:
+    @& (Join-Path "{{ justfile_directory() }}" "scripts/dev-sign.ps1") -Command setup
+
+[windows]
+dev-sign: build
+    @& (Join-Path "{{ justfile_directory() }}" "scripts/dev-sign.ps1") -Command uiaccess -Path "{{ build-bin }}/lyn.exe" -Manifest "build/windows/wails.exe.uiaccess.manifest"
+
 [linux]
 test-deb-install deb="":
     bash "{{ justfile_directory() }}/scripts/release.sh" test-deb-install "{{ deb }}"

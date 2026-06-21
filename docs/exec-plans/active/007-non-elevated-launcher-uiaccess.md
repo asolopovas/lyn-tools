@@ -22,7 +22,7 @@ The launcher runs at standard (medium) integrity by default so it can never star
 
 ## Pending
 
-- uiAccess release feature (one coupled unit — do NOT land piecemeal; see "uiAccess packaging checklist" below). Needs the user's signing-cert decision and a per-machine install, so it is gated on confirmation.
+- Host verification on a real per-machine install: run `just dev-sign-setup` (once, elevated), `just package-windows`, install the produced setup, then confirm the global hotkey fires while an elevated terminal is focused. Automated tests cannot cover the live `uiAccess` grant.
 
 ## uiAccess packaging checklist
 
@@ -47,6 +47,7 @@ Therefore the manifest must NOT be added to the shared `build/windows/wails.exe.
 - Replaced `startProcessAsShellUser` internals with the `CreateProcessWithTokenW` + shell-token primitive; removed the `cmd /c code` branch and Explorer reparenting. Fails closed if the shell token is elevated. Verified: real `startProcessAsShellUser` launches Notepad at `non-elevated` integrity from an `ELEVATED` caller. `just check` green. `docs/PLATFORM.md` updated.
 - Removed the elevated-helper pipe IPC entirely (`elevation_helper_windows.go`, `elevation_ipc.go`, `elevation_session.go` + tests; `--elevated-helper` entry in `main.go`; `adminSession`/`dispatchLaunch` wiring in `app.go`; helper hooks in `elevation.go`/`elevation_windows.go`). `run-admin` now goes straight to per-launch `ShellExecute runAs`. Kept the `SwitchElevation` toggle. `just check` green.
 - Verified empirically that an unsigned `uiAccess` exe will not launch, so the manifest stays out of the shared template until the signed + Program Files release path exists.
+- Implemented the uiAccess release path: release-only `build/windows/wails.exe.uiaccess.manifest`; `scripts/dev-sign.ps1` (`setup`/`sign`/`uiaccess`); `scripts/package-windows.ps1` stamps + signs the exe and signs the installer; `build/windows/installer.nsi` converted to per-machine `%ProgramFiles%\Lyn` (admin, HKLM, all-users shell context, system PATH via PowerShell); `just dev-sign-setup`/`just dev-sign` recipes. Verified end to end on a throwaway cert: `mt.exe` stamp + `signtool` sign + verify succeeds and the signed uiAccess exe launches from `%ProgramFiles%`; NSIS template compiles (`makensis` exit 0); `just check` green.
 
 ## Decisions
 

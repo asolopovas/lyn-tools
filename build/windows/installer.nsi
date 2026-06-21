@@ -16,11 +16,11 @@
 
 Unicode true
 ManifestDPIAware true
-RequestExecutionLevel user
+RequestExecutionLevel admin
 Name "Lyn"
 OutFile "${OUT_FILE}"
-InstallDir "$LOCALAPPDATA\Programs\Lyn"
-InstallDirRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "InstallLocation"
+InstallDir "$PROGRAMFILES64\Lyn"
+InstallDirRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "InstallLocation"
 
 !include MUI2.nsh
 !include LogicLib.nsh
@@ -43,6 +43,7 @@ InstType "Typical"
 
 Function .onInit
   SetRegView 64
+  SetShellVarContext all
 FunctionEnd
 
 Section "Lyn" SecApp
@@ -56,37 +57,33 @@ Section "Lyn" SecApp
   CreateShortcut "$SMPROGRAMS\Lyn\Lyn.lnk" "$INSTDIR\lyn.exe" "" "$INSTDIR\lyn.ico"
   CreateShortcut "$SMPROGRAMS\Lyn\Uninstall Lyn.lnk" "$INSTDIR\Uninstall.exe"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "DisplayName" "Lyn"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "DisplayVersion" "${VERSION}"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "Publisher" "lyn-tools"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "DisplayIcon" "$INSTDIR\lyn.ico"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "UninstallString" '"$INSTDIR\Uninstall.exe"'
-  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "NoModify" 1
-  WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "NoRepair" 1
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "DisplayName" "Lyn"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "DisplayVersion" "${VERSION}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "Publisher" "lyn-tools"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "DisplayIcon" "$INSTDIR\lyn.ico"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "UninstallString" '"$INSTDIR\Uninstall.exe"'
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "NoModify" 1
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn" "NoRepair" 1
 SectionEnd
 
 Section "Start Lyn with Windows" SecStartup
   SectionIn 1
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Lyn" '"$INSTDIR\lyn.exe" --start-hidden'
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "Lyn" '"$INSTDIR\lyn.exe" --start-hidden'
 SectionEnd
 
-Section "Add Lyn to user PATH" SecPath
+Section "Add Lyn to system PATH" SecPath
   SectionIn 1
-  ReadRegStr $0 HKCU "Environment" "Path"
-  ${If} $0 == ""
-    WriteRegExpandStr HKCU "Environment" "Path" "$INSTDIR"
-  ${Else}
-    WriteRegExpandStr HKCU "Environment" "Path" "$0;$INSTDIR"
-  ${EndIf}
+  nsExec::ExecToLog 'powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$$path=[Environment]::GetEnvironmentVariable(''Path'',''Machine''); if (-not (@($$path -split '';'') -contains ''$INSTDIR'')) { [Environment]::SetEnvironmentVariable(''Path'',((@($$path -split '';'' | Where-Object { $$_ }) + ''$INSTDIR'') -join '';''),''Machine'') }"'
   SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment"
 SectionEnd
 
 Section "Uninstall"
   SetRegView 64
+  SetShellVarContext all
   nsExec::ExecToLog 'taskkill /IM lyn.exe /F'
-  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Lyn"
-  nsExec::ExecToLog 'powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$$path=[Environment]::GetEnvironmentVariable(''Path'',''User''); $$items=@($$path -split '';'' | Where-Object { $$_ -and $$_ -ne ''$INSTDIR'' }); [Environment]::SetEnvironmentVariable(''Path'',($$items -join '';''),''User'')"'
+  DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "Lyn"
+  nsExec::ExecToLog 'powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$$path=[Environment]::GetEnvironmentVariable(''Path'',''Machine''); $$items=@($$path -split '';'' | Where-Object { $$_ -and $$_ -ne ''$INSTDIR'' }); [Environment]::SetEnvironmentVariable(''Path'',($$items -join '';''),''Machine'')"'
   SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment"
   Delete "$SMPROGRAMS\Lyn\Lyn.lnk"
   Delete "$SMPROGRAMS\Lyn\Uninstall Lyn.lnk"
@@ -95,7 +92,7 @@ Section "Uninstall"
   Delete "$INSTDIR\lyn.ico"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
-  DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Lyn"
 SectionEnd
 
 LangString DESC_SecApp ${LANG_ENGLISH} "Install the Lyn desktop launcher."
