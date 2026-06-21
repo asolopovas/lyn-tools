@@ -3,6 +3,7 @@ package sysadmin
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -36,7 +37,7 @@ func TestEnsureScriptWritesExecutableAndIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm()&0o100 == 0 {
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0o100 == 0 {
 		t.Fatalf("script is not executable: %v", info.Mode())
 	}
 	again, err := EnsureScript(dir)
