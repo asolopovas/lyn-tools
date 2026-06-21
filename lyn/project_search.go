@@ -180,11 +180,10 @@ func subsequenceScore(item searchProject, text string) (int, bool) {
 
 func fuzzyMatchScore(target string, query string) (int, bool) {
 	chars := []rune(target)
-	wanted := []rune(query)
 	score := 0
 	at := 0
 	previous := -1
-	for _, q := range wanted {
+	for _, q := range query {
 		found := -1
 		for ; at < len(chars); at++ {
 			if unicode.ToLower(chars[at]) == unicode.ToLower(q) {
