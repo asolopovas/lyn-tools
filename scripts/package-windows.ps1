@@ -29,13 +29,21 @@ if (-not (Test-Path -LiteralPath $Source)) { throw "Built executable not found a
 if (-not (Test-Path -LiteralPath $Icon)) { throw "Installer icon not found at $Icon" }
 if (-not (Test-Path -LiteralPath $Template)) { throw "Installer template not found at $Template" }
 
-$Manifest = Join-Path $Root 'build\windows\wails.exe.uiaccess.manifest'
-if (-not (Test-Path -LiteralPath $Manifest)) { throw "uiAccess manifest not found at $Manifest" }
+$UiAccessManifest = Join-Path $Root 'build\windows\wails.exe.uiaccess.manifest'
+if (-not (Test-Path -LiteralPath $UiAccessManifest)) { throw "uiAccess manifest not found at $UiAccessManifest" }
+$AsInvokerManifest = Join-Path $Root 'build\windows\wails.exe.asinvoker.manifest'
+if (-not (Test-Path -LiteralPath $AsInvokerManifest)) { throw "asInvoker manifest not found at $AsInvokerManifest" }
 $DevSign = Join-Path $Root 'scripts\dev-sign.ps1'
 
-& $DevSign -Command uiaccess -Path $Source -Manifest $Manifest
+$Hook = Join-Path (Split-Path -Parent $Source) 'lyn-hook.exe'
+
+if (Test-Path -LiteralPath $Hook) { Remove-Item -LiteralPath $Hook -Force }
+& go build -tags "desktop,production" -ldflags="-w -s -H windowsgui" -o $Hook $Root
+if ($LASTEXITCODE -ne 0) { throw "go build lyn-hook.exe failed with exit code $LASTEXITCODE" }
+& $DevSign -Command uiaccess -Path $Source -Manifest $AsInvokerManifest
+& $DevSign -Command uiaccess -Path $Hook -Manifest $UiAccessManifest
 
 New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
-& $Makensis "/DVERSION=$Version" "/DSOURCE_EXE=$Source" "/DSOURCE_ICON=$Icon" "/DOUT_FILE=$Output" $Template
+& $Makensis "/DVERSION=$Version" "/DSOURCE_EXE=$Source" "/DSOURCE_HOOK=$Hook" "/DSOURCE_ICON=$Icon" "/DOUT_FILE=$Output" $Template
 if ($LASTEXITCODE -ne 0) { throw "makensis failed with exit code $LASTEXITCODE" }
 & $DevSign -Command sign -Path $Output

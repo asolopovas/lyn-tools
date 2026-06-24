@@ -76,6 +76,9 @@ type windowsMessage struct {
 
 func registerHotkeyBinding(binding Binding, onPress func()) (Registration, error) {
 	if isWindowsDesktopHotkey(binding) {
+		if registration, ok := tryBrokerHotkey(onPress); ok {
+			return registration, nil
+		}
 		return registerKeyboardHookHotkey(onPress)
 	}
 	hk := nativehotkey.New(binding.Modifiers, binding.Key)

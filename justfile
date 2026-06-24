@@ -162,7 +162,9 @@ dev-sign-setup:
 
 [windows]
 dev-sign: build
-    @& (Join-Path "{{ justfile_directory() }}" "scripts/dev-sign.ps1") -Command uiaccess -Path "{{ build-bin }}/lyn.exe" -Manifest "build/windows/wails.exe.uiaccess.manifest"
+    @Copy-Item -LiteralPath "{{ build-bin }}/lyn.exe" -Destination "{{ build-bin }}/lyn-hook.exe" -Force
+    @& (Join-Path "{{ justfile_directory() }}" "scripts/dev-sign.ps1") -Command uiaccess -Path "{{ build-bin }}/lyn.exe" -Manifest "build/windows/wails.exe.asinvoker.manifest"
+    @& (Join-Path "{{ justfile_directory() }}" "scripts/dev-sign.ps1") -Command uiaccess -Path "{{ build-bin }}/lyn-hook.exe" -Manifest "build/windows/wails.exe.uiaccess.manifest"
 
 [linux]
 test-deb-install deb="":

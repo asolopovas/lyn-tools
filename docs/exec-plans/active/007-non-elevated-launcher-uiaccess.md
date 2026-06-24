@@ -20,8 +20,15 @@ The launcher runs at standard (medium) integrity by default so it can never star
 - No named-pipe/helper path can run an arbitrary executable elevated without a UAC prompt.
 - `just check` passes.
 
+## Blocker: uiAccess kills the WebView2 GUI
+
+Stamping `uiAccess="true"` onto the Wails launcher exe makes the GUI process exit silently at startup. Verified on a real `%ProgramFiles%\Lyn` install: the signed uiAccess exe writes `debug.start` and then dies before `startup.begin` (no Go panic in `crash.log`, no `wails.error`); the byte-identical binary in a non-secure location, where uiAccess is not granted, reaches `startup.begin` and runs normally. WebView2 spawns sandboxed child processes that do not initialize under a uiAccess token, so uiAccess cannot live on the GUI process. Plan 007's "uiAccess on the launcher exe" approach is therefore unworkable for this app.
+
+PowerToys Run does not hit this because it is native XAML, not a webview. Its hotkey works everywhere because the low-level keyboard hook lives in a separate process (the elevated/uiAccess Runner) that signals the GUI via a named event. The fix for Lyn must mirror that: a tiny separate `uiAccess` hook-broker exe (no WebView2) that owns the `WH_KEYBOARD_LL` hook and signals the medium-IL GUI to toggle. A signal-only broker is not an escalation surface (it cannot launch arbitrary code), unlike the removed elevated-launch pipe.
+
 ## Pending
 
+- Re-architect the hotkey path to a separate uiAccess hook-broker process (see blocker above). The GUI exe stays `asInvoker` (no uiAccess); only the broker carries the uiAccess manifest + signature + Program Files location.
 - Host verification on a real per-machine install: run `just dev-sign-setup` (once, elevated), `just package-windows`, install the produced setup, then confirm the global hotkey fires while an elevated terminal is focused. Automated tests cannot cover the live `uiAccess` grant.
 
 ## uiAccess packaging checklist

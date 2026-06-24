@@ -15,6 +15,9 @@ import (
 )
 
 func main() {
+	if lyn.MaybeRunHotkeyBroker(os.Args[1:]) {
+		return
+	}
 	debug := lyn.NewDebugLogger(os.Args[1:])
 	initialConfig, configErr := lyn.LoadConfig("")
 	setupCrashLog(initialConfig.Cache.Dir)

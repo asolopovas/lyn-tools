@@ -38,8 +38,12 @@ function Invoke-Sign {
     $signArgs = @('sign', '/sm', '/sha1', $cert.Thumbprint, '/fd', 'SHA256')
     if ($env:LYN_SIGN_TIMESTAMP_URL) { $signArgs += @('/tr', $env:LYN_SIGN_TIMESTAMP_URL, '/td', 'SHA256') }
     $signArgs += $Target
-    & $signtool @signArgs
-    if ($LASTEXITCODE -ne 0) { throw "signtool sign failed with exit code $LASTEXITCODE" }
+    for ($attempt = 1; $attempt -le 4; $attempt++) {
+        & $signtool @signArgs
+        if ($LASTEXITCODE -eq 0) { break }
+        if ($attempt -eq 4) { throw "signtool sign failed with exit code $LASTEXITCODE" }
+        Start-Sleep -Seconds 2
+    }
     & $signtool verify /pa $Target
     if ($LASTEXITCODE -ne 0) { throw "signtool verify failed with exit code $LASTEXITCODE" }
     Write-Output "Signed $Target"

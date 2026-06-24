@@ -6,6 +6,10 @@
 !error "SOURCE_EXE is required"
 !endif
 
+!ifndef SOURCE_HOOK
+!error "SOURCE_HOOK is required"
+!endif
+
 !ifndef SOURCE_ICON
 !error "SOURCE_ICON is required"
 !endif
@@ -51,7 +55,10 @@ Section "Lyn" SecApp
   SetOutPath "$INSTDIR"
   DetailPrint "Stopping running Lyn processes"
   nsExec::ExecToLog 'taskkill /IM lyn.exe /F'
+  nsExec::ExecToLog 'taskkill /IM lyn-hook.exe /F'
+  Sleep 1000
   File "/oname=lyn.exe" "${SOURCE_EXE}"
+  File "/oname=lyn-hook.exe" "${SOURCE_HOOK}"
   File "/oname=lyn.ico" "${SOURCE_ICON}"
   CreateDirectory "$SMPROGRAMS\Lyn"
   CreateShortcut "$SMPROGRAMS\Lyn\Lyn.lnk" "$INSTDIR\lyn.exe" "" "$INSTDIR\lyn.ico"
@@ -82,6 +89,7 @@ Section "Uninstall"
   SetRegView 64
   SetShellVarContext all
   nsExec::ExecToLog 'taskkill /IM lyn.exe /F'
+  nsExec::ExecToLog 'taskkill /IM lyn-hook.exe /F'
   DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "Lyn"
   nsExec::ExecToLog 'powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$$path=[Environment]::GetEnvironmentVariable(''Path'',''Machine''); $$items=@($$path -split '';'' | Where-Object { $$_ -and $$_ -ne ''$INSTDIR'' }); [Environment]::SetEnvironmentVariable(''Path'',($$items -join '';''),''Machine'')"'
   SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment"
@@ -89,6 +97,7 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\Lyn\Uninstall Lyn.lnk"
   RMDir "$SMPROGRAMS\Lyn"
   Delete "$INSTDIR\lyn.exe"
+  Delete "$INSTDIR\lyn-hook.exe"
   Delete "$INSTDIR\lyn.ico"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
