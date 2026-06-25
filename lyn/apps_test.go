@@ -166,6 +166,58 @@ func TestUnresolvedWindowsShortcutIsKept(t *testing.T) {
 	}
 }
 
+func TestWindowsShortcutToDocumentIsSkipped(t *testing.T) {
+	dir := t.TempDir()
+	for name, target := range map[string]string{
+		"CMake Documentation.lnk": `C:\Program Files\CMake\doc\index.html`,
+		"PuTTY Manual.lnk":        `C:\Program Files\PuTTY\putty.chm`,
+		"TransMac Read Me.lnk":    `C:\Program Files\TransMac\Readme.txt`,
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), fakeWindowsShortcut(target), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	apps, err := scanApplicationDirs(context.Background(), []string{dir}, "windows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(apps) != 0 {
+		t.Fatalf("unexpected app count %d: %#v", len(apps), apps)
+	}
+}
+
+func TestWindowsWebInternetShortcutIsSkipped(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Mp3tag Website.url"), []byte("[InternetShortcut]\nURL=https://www.mp3tag.de/en/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "Counter-Strike 2.url"), []byte("[InternetShortcut]\nURL=steam://rungameid/730\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	apps, err := scanApplicationDirs(context.Background(), []string{dir}, "windows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(apps) != 1 || apps[0].Name != "Counter-Strike 2" {
+		t.Fatalf("expected only the steam launcher, got %#v", apps)
+	}
+}
+
+func TestTrimApplicationNameKeepsDottedNames(t *testing.T) {
+	cases := map[string]string{
+		"Brave.lnk":                        "Brave",
+		"Node.js documentation.url":        "Node.js documentation",
+		"IDLE (Python 3.14 64-bit).lnk":    "IDLE (Python 3.14 64-bit)",
+		"AOMEI Partition Assistant 10.lnk": "AOMEI Partition Assistant 10",
+		"code.exe":                         "code",
+	}
+	for name, want := range cases {
+		if got := trimApplicationName(name); got != want {
+			t.Fatalf("trimApplicationName(%q) = %q, want %q", name, got, want)
+		}
+	}
+}
+
 func TestWindowsShortcutToFolderIsSkipped(t *testing.T) {
 	dir := t.TempDir()
 	folder := filepath.Join(dir, "Administrative Tools")

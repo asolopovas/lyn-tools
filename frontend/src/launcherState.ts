@@ -94,7 +94,7 @@ export function useLauncherState(api: WailsApp = backend) {
 
   async function loadVisibleIcons(): Promise<void> {
     const missing = matches.value.filter(
-      (project) => project.kind === "app" && projectIcons.value[project.path] === undefined,
+      (project) => project.kind === "app" && !projectIcons.value[project.path],
     );
     if (!missing.length) {
       return;
@@ -108,9 +108,13 @@ export function useLauncherState(api: WailsApp = backend) {
         }
       }),
     );
+    const resolved = loaded.filter(([, icon]) => icon !== "");
+    if (!resolved.length) {
+      return;
+    }
     projectIcons.value = {
       ...projectIcons.value,
-      ...Object.fromEntries(loaded),
+      ...Object.fromEntries(resolved),
     };
     cacheState();
   }

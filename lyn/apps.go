@@ -200,6 +200,9 @@ func detectApplication(path string, goos string) (Project, bool) {
 		if ext != ".lnk" && ext != ".appref-ms" && ext != ".url" {
 			return Project{}, false
 		}
+		if ext == ".url" && isWindowsWebInternetShortcut(path) {
+			return Project{}, false
+		}
 		if ext == ".lnk" && !isWindowsShortcutGUIApplication(path) {
 			return Project{}, false
 		}
@@ -558,9 +561,14 @@ func isWindowsShortcutGUIApplication(path string) bool {
 	if !ok {
 		return true
 	}
-	ext := strings.ToLower(filepath.Ext(target))
-	switch ext {
+	return isWindowsLaunchableShortcutTarget(target)
+}
+
+func isWindowsLaunchableShortcutTarget(target string) bool {
+	switch strings.ToLower(filepath.Ext(target)) {
 	case ".cmd", ".bat", ".ps1", ".psm1", ".vbs", ".js", ".jse", ".wsf", ".wsh":
+		return false
+	case ".htm", ".html", ".mht", ".mhtml", ".url", ".chm", ".hlp", ".txt", ".rtf", ".pdf", ".md":
 		return false
 	case ".exe":
 		return isWindowsGUIExecutable(target)
@@ -570,6 +578,22 @@ func isWindowsShortcutGUIApplication(path string) bool {
 		}
 		return true
 	}
+}
+
+func isWindowsWebInternetShortcut(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	for _, raw := range strings.Split(string(data), "\n") {
+		line := strings.TrimSpace(raw)
+		if !strings.HasPrefix(strings.ToLower(line), "url=") {
+			continue
+		}
+		target := strings.ToLower(strings.TrimSpace(line[len("url="):]))
+		return strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://")
+	}
+	return false
 }
 
 func windowsShortcutTarget(path string) (string, bool) {
@@ -648,13 +672,7 @@ func readShortcutString(data []byte, base int, size int, offset int, unicode boo
 }
 
 func trimApplicationName(name string) string {
-	for {
-		ext := filepath.Ext(name)
-		if ext == "" {
-			return name
-		}
-		name = strings.TrimSuffix(name, ext)
-	}
+	return strings.TrimSuffix(name, filepath.Ext(name))
 }
 
 func desktopApplicationName(path string) (string, bool) {
