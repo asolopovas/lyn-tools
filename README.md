@@ -4,7 +4,7 @@ Fast desktop launcher for Windows and Linux.
 
 Lyn indexes project folders, apps, VS Code workspaces, and VS Code recent projects, then opens them from a global hotkey.
 
-Version: `0.1.9`
+Version: `0.1.10`
 
 ## Features
 
@@ -73,6 +73,7 @@ Packages are built under `releases/` and published through GitHub CLI.
 ## License
 
 MIT. See `LICENSE`.
+
 
 
 
