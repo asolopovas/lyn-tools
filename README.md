@@ -73,7 +73,3 @@ Packages are built under `releases/` and published through GitHub CLI.
 ## License
 
 MIT. See `LICENSE`.
-
-
-
-
