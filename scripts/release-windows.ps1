@@ -9,6 +9,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+$PSNativeCommandUseErrorActionPreference = $false
 
 function Get-CurrentVersion {
     if (Test-Path -LiteralPath 'VERSION') {
@@ -53,11 +54,52 @@ function Sync-VersionFiles([string]$OldVersion, [string]$NewVersion) {
     }
 }
 
-function Assert-Clean {
-    & git diff --quiet
-    if ($LASTEXITCODE -ne 0) { throw 'release: tracked files changed; commit or stash first' }
-    & git diff --cached --quiet
-    if ($LASTEXITCODE -ne 0) { throw 'release: staged changes exist; commit or stash first' }
+function Test-ReleasePath([string]$Path) {
+    if ($Path -in @('VERSION', 'README.md', 'wails.json')) { return $true }
+    return $Path -like 'frontend/dist/*'
+}
+
+function Get-DirtyPaths {
+    $Lines = & git status --porcelain
+    if ($LASTEXITCODE -ne 0) { throw "git status failed with exit code $LASTEXITCODE" }
+    $Paths = @()
+    foreach ($Line in $Lines) {
+        if (-not $Line) { continue }
+        $Path = $Line.Substring(3).Trim()
+        if ($Path -match ' -> ') { $Path = ($Path -split ' -> ')[-1] }
+        $Paths += $Path.Trim('"')
+    }
+    return $Paths
+}
+
+function Assert-OnlyReleaseChanges {
+    foreach ($Path in Get-DirtyPaths) {
+        if (-not (Test-ReleasePath $Path)) { throw "release: unexpected tracked change: $Path; commit or stash first" }
+    }
+}
+
+function Get-CommittedVersion {
+    $Committed = & git show HEAD:VERSION 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $Committed) { return $null }
+    return $Committed.Trim().TrimStart('v')
+}
+
+function Get-HeadSubject {
+    $Subject = & git log -1 --pretty=%s 2>$null
+    if ($LASTEXITCODE -ne 0) { return '' }
+    return [string]$Subject
+}
+
+function Test-TagExists([string]$Tag) {
+    & git rev-parse -q --verify "refs/tags/$Tag" 2>$null | Out-Null
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Initialize-ReleaseDir([string]$Tag) {
+    $OutDir = Join-Path 'releases' $Tag
+    if (Test-Path -LiteralPath $OutDir) { Remove-Item -LiteralPath $OutDir -Recurse -Force }
+    New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
+    return $OutDir
 }
 
 function Write-Checksums([string]$OutDir) {
@@ -173,56 +215,92 @@ function Invoke-Release([string[]]$CommandArgs) {
         }
     }
     $Current = Get-CurrentVersion
-    if (-not (Test-Version $Current.TrimStart('v'))) { throw "release: invalid current version $Current" }
-    $Next = $Current.TrimStart('v')
-    if ($Bump) { $Next = Get-NextVersion $Current $Bump }
-    $Tag = "v$Next"
+    $CurrentClean = $Current.TrimStart('v')
+    if (-not (Test-Version $CurrentClean)) { throw "release: invalid current version $Current" }
+    $HeadSubject = Get-HeadSubject
+    $Target = $CurrentClean
+    $NeedSync = $false
+    if ($Bump) {
+        $Committed = Get-CommittedVersion
+        $BumpUncommitted = ($null -ne $Committed -and $Committed -ne $CurrentClean)
+        $Resume = $BumpUncommitted -or (($HeadSubject -eq "Release v$CurrentClean") -and -not (Test-TagExists "v$CurrentClean"))
+        if ($Resume) {
+            $Target = $CurrentClean
+        } else {
+            $Target = Get-NextVersion $Current $Bump
+            $NeedSync = $true
+        }
+    }
+    $Tag = "v$Target"
     if ($DryRun) {
-        Write-Output "release: version=$Next tag=$Tag platform=windows assets=windows-installer,linux-deb-docker arch=$(Get-ArchName) push=$Push force=$Force"
+        Write-Output "release: version=$Target tag=$Tag platform=windows assets=windows-installer,linux-deb-docker arch=$(Get-ArchName) push=$Push force=$Force"
         return
     }
-    Assert-Clean
-    if ($Bump) { Sync-VersionFiles $Current.TrimStart('v') $Next }
+    Assert-OnlyReleaseChanges
+    if ($NeedSync) { Sync-VersionFiles $CurrentClean $Target }
     & just check
     if ($LASTEXITCODE -ne 0) { throw "just check failed with exit code $LASTEXITCODE" }
     & just build
     if ($LASTEXITCODE -ne 0) { throw "just build failed with exit code $LASTEXITCODE" }
-    $OutDir = Build-WindowsPackage $Next
-    Build-DebPackage $Next | Out-Null
+    $OutDir = Initialize-ReleaseDir $Tag
+    Build-WindowsPackage $Target | Out-Null
+    Build-DebPackage $Target | Out-Null
     Write-Checksums $OutDir
     if ($Bump) {
-        & git add VERSION README.md wails.json frontend/dist
-        if ($LASTEXITCODE -ne 0) { throw "git add failed with exit code $LASTEXITCODE" }
-        & git commit -m "Release $Tag"
-        if ($LASTEXITCODE -ne 0) { throw "git commit failed with exit code $LASTEXITCODE" }
+        Assert-OnlyReleaseChanges
+        if (@(Get-DirtyPaths).Count -gt 0) {
+            & git add VERSION README.md wails.json frontend/dist
+            if ($LASTEXITCODE -ne 0) { throw "git add failed with exit code $LASTEXITCODE" }
+            & git commit -m "Release $Tag"
+            if ($LASTEXITCODE -ne 0) { throw "git commit failed with exit code $LASTEXITCODE" }
+        } elseif ((Get-HeadSubject) -ne "Release $Tag") {
+            throw "release: nothing to commit and HEAD is not 'Release $Tag'"
+        }
     } else {
         & git diff --quiet
         if ($LASTEXITCODE -ne 0) { throw 'release: build changed tracked files; rerun with --bump or commit build output first' }
     }
-    & git rev-parse -q --verify "refs/tags/$Tag" | Out-Null
-    if ($LASTEXITCODE -eq 0) {
-        if ($Force) {
-            & git tag -d $Tag | Out-Null
-        } else {
-            throw "release: tag exists: $Tag; use --force to move it"
+    if (Test-TagExists $Tag) {
+        $TagSha = (& git rev-parse "refs/tags/$Tag^{commit}").Trim()
+        $HeadSha = (& git rev-parse HEAD).Trim()
+        if ($TagSha -ne $HeadSha) {
+            if ($Force) {
+                & git tag -d $Tag | Out-Null
+                & git tag $Tag
+            } else {
+                throw "release: tag exists at a different commit: $Tag; use --force to move it"
+            }
         }
+    } else {
+        & git tag $Tag
+        if ($LASTEXITCODE -ne 0) { throw "git tag failed with exit code $LASTEXITCODE" }
     }
-    & git tag $Tag
     if ($Push) {
         & git push origin HEAD
         if ($LASTEXITCODE -ne 0) { throw "git push failed with exit code $LASTEXITCODE" }
         if ($Force) {
             & git push origin "refs/tags/$Tag`:refs/tags/$Tag" --force
-            & gh release delete $Tag --yes 2>$null
+            if ($LASTEXITCODE -ne 0) { throw "git push tag failed with exit code $LASTEXITCODE" }
         } else {
             & git push origin $Tag
             if ($LASTEXITCODE -ne 0) { throw "git push tag failed with exit code $LASTEXITCODE" }
-            & gh release view $Tag *> $null
-            if ($LASTEXITCODE -eq 0) { throw "release: GitHub release exists: $Tag; use --force to replace" }
         }
+        & gh release view $Tag *> $null
+        $ReleaseExists = ($LASTEXITCODE -eq 0)
         $ReleaseAssetPaths = Get-ChildItem -LiteralPath $OutDir -File | ForEach-Object { $_.FullName }
-        & gh release create $Tag @ReleaseAssetPaths --title "Lyn $Tag" --notes "Lyn $Tag" --latest
-        if ($LASTEXITCODE -ne 0) { throw "gh release create failed with exit code $LASTEXITCODE" }
+        if ($ReleaseExists -and $Force) {
+            & gh release delete $Tag --yes 2>$null
+            $ReleaseExists = $false
+        }
+        if ($ReleaseExists) {
+            & gh release upload $Tag @ReleaseAssetPaths --clobber
+            if ($LASTEXITCODE -ne 0) { throw "gh release upload failed with exit code $LASTEXITCODE" }
+            & gh release edit $Tag --latest
+            if ($LASTEXITCODE -ne 0) { throw "gh release edit failed with exit code $LASTEXITCODE" }
+        } else {
+            & gh release create $Tag @ReleaseAssetPaths --title "Lyn $Tag" --notes "Lyn $Tag" --latest
+            if ($LASTEXITCODE -ne 0) { throw "gh release create failed with exit code $LASTEXITCODE" }
+        }
     }
     Write-Output "release: $Tag ready in $OutDir"
 }

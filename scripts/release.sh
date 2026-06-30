@@ -66,30 +66,42 @@ if (fs.existsSync('README.md')) {
 JS
 }
 
-ensure_clean() {
-	git diff --quiet || {
-		printf 'release: tracked files changed; commit or stash first\n' >&2
-		exit 1
-	}
-	git diff --cached --quiet || {
-		printf 'release: staged changes exist; commit or stash first\n' >&2
-		exit 1
-	}
+is_release_path() {
+	case "$1" in
+	VERSION | README.md | wails.json | frontend/dist/*) return 0 ;;
+	*) return 1 ;;
+	esac
 }
 
-ensure_release_changes() {
-	local changed
-	changed="$(git diff --name-only)"
-	while IFS= read -r path; do
-		[ -n "$path" ] || continue
-		case "$path" in
-		VERSION | README.md | wails.json | frontend/dist/*) ;;
-		*)
-			printf 'release: unexpected tracked change after build: %s\n' "$path" >&2
+assert_only_release_changes() {
+	local line path
+	while IFS= read -r line; do
+		[ -n "$line" ] || continue
+		path="${line:3}"
+		case "$path" in *" -> "*) path="${path##* -> }" ;; esac
+		path="${path%\"}"
+		path="${path#\"}"
+		is_release_path "$path" || {
+			printf 'release: unexpected tracked change: %s; commit or stash first\n' "$path" >&2
 			exit 1
-			;;
-		esac
-	done <<<"$changed"
+		}
+	done < <(git status --porcelain)
+}
+
+dirty_count() {
+	git status --porcelain | grep -c . || true
+}
+
+committed_version() {
+	git show HEAD:VERSION 2>/dev/null | tr -d '[:space:]' | sed 's/^v//'
+}
+
+head_subject() {
+	git log -1 --pretty=%s 2>/dev/null || true
+}
+
+tag_exists() {
+	git rev-parse -q --verify "refs/tags/$1" >/dev/null 2>&1
 }
 
 platform_name() {
@@ -166,15 +178,21 @@ upload_release() {
 	git push origin HEAD
 	if [ "$force" = true ]; then
 		git push origin "refs/tags/$tag:refs/tags/$tag" --force
-		gh release delete "$tag" --yes >/dev/null 2>&1 || true
 	else
 		git push origin "$tag"
-		if gh release view "$tag" >/dev/null 2>&1; then
-			printf 'release: GitHub release exists: %s; use --force to replace\n' "$tag" >&2
-			exit 1
-		fi
 	fi
-	gh release create "$tag" "$out_dir"/* --title "Lyn $tag" --notes "Lyn $tag"
+	local exists=false
+	if gh release view "$tag" >/dev/null 2>&1; then exists=true; fi
+	if [ "$exists" = true ] && [ "$force" = true ]; then
+		gh release delete "$tag" --yes >/dev/null 2>&1 || true
+		exists=false
+	fi
+	if [ "$exists" = true ]; then
+		gh release upload "$tag" "$out_dir"/* --clobber
+		gh release edit "$tag" --latest 2>/dev/null || true
+	else
+		gh release create "$tag" "$out_dir"/* --title "Lyn $tag" --notes "Lyn $tag" --latest
+	fi
 }
 
 publish_assets_command() {
@@ -228,7 +246,6 @@ release_command() {
 	local force=false
 	local dry_run=false
 	local current
-	local next
 	local tag
 	local platform
 	local arch
@@ -274,48 +291,81 @@ release_command() {
 			;;
 		esac
 	done
+	local current_clean
+	local head_sub
+	local target
+	local need_sync=false
+	local committed
+	local resume
 	current="$(current_version)"
-	valid_version "${current#v}" || {
+	current_clean="${current#v}"
+	valid_version "$current_clean" || {
 		printf 'release: invalid current version %s\n' "$current" >&2
 		exit 1
 	}
-	next="${current#v}"
+	head_sub="$(head_subject)"
+	target="$current_clean"
 	if [ -n "$bump" ]; then
-		next="$(next_version "$current" "$bump")"
+		committed="$(committed_version)"
+		resume=false
+		if [ -n "$committed" ] && [ "$committed" != "$current_clean" ]; then
+			resume=true
+		elif [ "$head_sub" = "Release v$current_clean" ] && ! tag_exists "v$current_clean"; then
+			resume=true
+		fi
+		if [ "$resume" = true ]; then
+			target="$current_clean"
+		else
+			target="$(next_version "$current" "$bump")"
+			need_sync=true
+		fi
 	fi
-	tag="v$next"
+	tag="v$target"
 	platform="$(platform_name)"
 	arch="$(arch_name)"
 	if [ "$dry_run" = true ]; then
-		printf 'release: version=%s tag=%s platform=%s arch=%s push=%s force=%s\n' "$next" "$tag" "$platform" "$arch" "$push" "$force"
+		printf 'release: version=%s tag=%s platform=%s arch=%s push=%s force=%s\n' "$target" "$tag" "$platform" "$arch" "$push" "$force"
 		exit 0
 	fi
-	ensure_clean
-	if [ -n "$bump" ]; then
-		sync_version_files "${current#v}" "$next"
+	assert_only_release_changes
+	if [ "$need_sync" = true ]; then
+		sync_version_files "$current_clean" "$target"
 	fi
 	just check
 	just build
 	out_dir="$(prepare_release_dir "$tag")"
-	package_native_installers "$tag" "$next" "$platform" "$arch" "$out_dir"
+	package_native_installers "$tag" "$target" "$platform" "$arch" "$out_dir"
 	if [ -n "$bump" ]; then
-		ensure_release_changes
-		git add VERSION README.md wails.json frontend/dist
-		git commit -m "Release $tag"
+		assert_only_release_changes
+		if [ "$(dirty_count)" -gt 0 ]; then
+			git add VERSION README.md wails.json frontend/dist
+			git commit -m "Release $tag"
+		elif [ "$(head_subject)" != "Release $tag" ]; then
+			printf 'release: nothing to commit and HEAD is not %s\n' "Release $tag" >&2
+			exit 1
+		fi
 	elif ! git diff --quiet; then
 		printf 'release: build changed tracked files; rerun with --bump or commit build output first\n' >&2
 		git diff --name-only >&2
 		exit 1
 	fi
-	if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-		if [ "$force" = true ]; then
-			git tag -d "$tag" >/dev/null
-		else
-			printf 'release: tag exists: %s; use --force to move it\n' "$tag" >&2
-			exit 1
+	if tag_exists "$tag"; then
+		local tag_sha
+		local head_sha
+		tag_sha="$(git rev-parse "refs/tags/$tag^{commit}")"
+		head_sha="$(git rev-parse HEAD)"
+		if [ "$tag_sha" != "$head_sha" ]; then
+			if [ "$force" = true ]; then
+				git tag -d "$tag" >/dev/null
+				git tag "$tag"
+			else
+				printf 'release: tag exists at a different commit: %s; use --force to move it\n' "$tag" >&2
+				exit 1
+			fi
 		fi
+	else
+		git tag "$tag"
 	fi
-	git tag "$tag"
 	if [ "$push" = true ]; then
 		upload_release "$tag" "$out_dir" "$force"
 	fi

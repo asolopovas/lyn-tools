@@ -29,6 +29,25 @@ function Find-SdkTool {
     throw "$Name.exe not found. Install the Windows SDK or add it to PATH."
 }
 
+function Grant-PrivateKeyRead {
+    param(
+        [System.Security.Cryptography.X509Certificates.X509Certificate2]$Cert,
+        [string]$Account
+    )
+    $rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($Cert)
+    if (-not $rsa) { throw 'Signing certificate has no accessible private key.' }
+    if ($rsa -is [System.Security.Cryptography.RSACng]) {
+        $keyFile = Join-Path $env:ProgramData "Microsoft\Crypto\Keys\$($rsa.Key.UniqueName)"
+    } else {
+        $keyFile = Join-Path $env:ProgramData "Microsoft\Crypto\RSA\MachineKeys\$($rsa.CspKeyContainerInfo.UniqueKeyContainerName)"
+    }
+    if (-not (Test-Path -LiteralPath $keyFile)) { throw "Private key container not found at $keyFile" }
+    $acl = Get-Acl -LiteralPath $keyFile
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($Account, 'Read', 'Allow')
+    $acl.SetAccessRule($rule)
+    Set-Acl -LiteralPath $keyFile -AclObject $acl
+}
+
 function Invoke-Sign {
     param([string]$Target)
     if (-not (Test-Path -LiteralPath $Target)) { throw "File not found at $Target" }
@@ -59,7 +78,10 @@ if ($Command -eq 'setup') {
     Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
     Import-Certificate -FilePath $cerPath -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
     Import-Certificate -FilePath $cerPath -CertStoreLocation Cert:\LocalMachine\TrustedPublisher | Out-Null
+    $account = ([Security.Principal.WindowsIdentity]::GetCurrent()).Name
+    Grant-PrivateKeyRead -Cert $cert -Account $account
     Write-Output "Installed code-signing certificate CN=$Subject (thumbprint $($cert.Thumbprint))."
+    Write-Output "Granted $account read access to the signing private key; release packaging can sign without elevation."
     return
 }
 

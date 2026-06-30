@@ -61,14 +61,19 @@ Read `AGENTS.md` and `ARCHITECTURE.md` before structural changes. Use checked-in
 
 ## Release
 
+Windows packaging signs `lyn.exe` and the `lyn-hook.exe` broker, so run the one-time elevated setup first. It creates the dev code-signing certificate and grants your user read access to its private key so later releases sign without elevation:
+
 ```bash
-just bump patch
+just dev-sign-setup
+```
+
+```bash
 just release-patch
 just release-minor
 just release-major
 ```
 
-Packages are built under `releases/` and published through GitHub CLI.
+Each `release-*` is `just release` with the matching bump: it bumps the version, runs `just check` and `just build`, packages the Windows installer and the Linux `.deb` (built in Docker), commits, tags, and publishes through GitHub CLI. Packages land under `releases/`. Add `--no-push` to stop before publishing or `--dry-run` to preview. Runs are idempotent: an interrupted release can be re-run with the same command without double-bumping or duplicating the commit, and `--force` moves an existing tag and replaces its GitHub release.
 
 ## License
 
