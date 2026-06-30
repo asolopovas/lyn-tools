@@ -27,6 +27,8 @@ PowerToys solves the same problem the same way: the hook lives in a separate pri
 2. Copy `lyn.exe` -> `lyn-hook.exe`; `mt.exe` stamp the `uiAccess` manifest onto the copy.
 3. Sign both exes; NSIS ships both into `%ProgramFiles%\Lyn`.
 
+`scripts/install-windows.ps1` (the `just install` dev path) does the same with the dev cert: it copies the freshly built unsigned `lyn.exe` to `lyn-hook.exe`, then in one elevated step signs both (asInvoker / uiAccess via `dev-sign.ps1`), stops the running launcher and the higher-integrity broker, and deploys both. It targets `%ProgramFiles%\Lyn` because uiAccess is only granted from a secure location; installing elsewhere warns and the broker stays medium-IL. Requires `just dev-sign-setup` once. `dev-sign.ps1` strips any existing signature before stamping, since `mt.exe` over a signed PE corrupts it (signtool `0x800700C1`).
+
 ## Acceptance Criteria
 
 - `Win+D` toggles the launcher while an elevated Windows Terminal is focused (real keypress; cannot be synthesized because the hook ignores injected input).

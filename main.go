@@ -14,10 +14,13 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
+const singleInstanceID = "lyn-tools-launcher"
+
 func main() {
 	if lyn.MaybeRunHotkeyBroker(os.Args[1:]) {
 		return
 	}
+	lyn.WaitForPriorInstance(os.Args[1:])
 	debug := lyn.NewDebugLogger(os.Args[1:])
 	initialConfig, configErr := lyn.LoadConfig("")
 	setupCrashLog(initialConfig.Cache.Dir)
@@ -69,6 +72,12 @@ func newWailsOptions(app *lyn.App) *options.App {
 		OnShutdown:    app.Shutdown,
 		OnBeforeClose: app.BeforeClose,
 		Bind:          []any{app},
+	}
+	if app.WindowMode() != string(lyn.SettingsWindowMode) {
+		appOptions.SingleInstanceLock = &options.SingleInstanceLock{
+			UniqueId:               singleInstanceID,
+			OnSecondInstanceLaunch: func(options.SecondInstanceData) { app.Show() },
+		}
 	}
 	if app.WindowMode() == string(lyn.SettingsWindowMode) {
 		appOptions.Title = "Lyn Settings"

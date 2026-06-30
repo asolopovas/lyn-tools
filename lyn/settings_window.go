@@ -96,7 +96,7 @@ func (a *App) settingsWindowActive() bool {
 		return false
 	}
 	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil || !settingsProcessRunning(pid) {
+	if err != nil || !processRunning(pid) {
 		_ = os.Remove(path)
 		return false
 	}
@@ -113,12 +113,11 @@ func (a *App) settingsActivityPath() string {
 
 func settingsWindowArgs(args []string) []string {
 	filtered := make([]string, 0, len(args)+1)
-	for _, arg := range args {
+	for _, arg := range stripAwaitExit(args) {
 		if arg == "--start-hidden" || arg == "--settings-window" {
 			continue
 		}
 		filtered = append(filtered, arg)
 	}
-	filtered = append(filtered, "--settings-window")
-	return filtered
+	return append(filtered, "--settings-window")
 }

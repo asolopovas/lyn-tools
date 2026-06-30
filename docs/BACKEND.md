@@ -11,6 +11,8 @@ Part of the [architecture map](../ARCHITECTURE.md).
 
 - Closing the launcher window minimizes to tray. The only exit is the tray menu (or a restart/elevation hand-off).
 - Quit/restart/elevation route through `App.requestQuit`, which sets `quitting` before `runtime.Quit`.
+- One tray icon means one launcher process. The launcher (not the settings window) takes a Wails `SingleInstanceLock`; a second launch surfaces the running window via `App.Show` and exits. Restart spawns the replacement with `--await-exit <pid>`; `WaitForPriorInstance` blocks until the old process exits and frees the mutex before Wails reacquires it.
+- Autostart is installer-owned: the NSIS installer writes the per-machine `HKLM\...\Run\Lyn` entry. `startup.Configure` skips the per-user `HKCU` entry (and clears any stale one) when that `HKLM` entry exists, so login never starts two launchers.
 - `App.BeforeClose` (`OnBeforeClose`) handles Wails closes and is the Linux path.
 - Windows `WM_SYSCOMMAND`/`SC_CLOSE` bypasses `OnBeforeClose`, so `installWindowsCloseToTray` ([`lyn/window_windows.go`](../lyn/window_windows.go)) subclasses the window proc to intercept `WM_CLOSE` and `SC_CLOSE`.
 - The settings window closes normally.

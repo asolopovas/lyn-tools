@@ -69,6 +69,11 @@ if ($Command -eq 'uiaccess') {
     if (-not (Test-Path -LiteralPath $Path)) { throw "Executable not found at $Path" }
     if (-not (Test-Path -LiteralPath $Manifest)) { throw "Manifest not found at $Manifest" }
     $mt = Find-SdkTool mt
+    if ((Get-AuthenticodeSignature $Path).Status -ne 'NotSigned') {
+        $signtool = Find-SdkTool signtool
+        & $signtool remove /s $Path
+        if ($LASTEXITCODE -ne 0) { throw "signtool failed to remove the existing signature before stamping (exit $LASTEXITCODE)" }
+    }
     & $mt -nologo -manifest $Manifest "-outputresource:$Path;#1"
     if ($LASTEXITCODE -ne 0) { throw "mt.exe failed to stamp the uiAccess manifest (exit $LASTEXITCODE)" }
     Invoke-Sign $Path

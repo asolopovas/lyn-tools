@@ -34,6 +34,21 @@ func TestWindowModeFromArgs(t *testing.T) {
 	}
 }
 
+func TestSingleInstanceLockLauncherOnly(t *testing.T) {
+	launcher := newWailsOptions(lyn.NewApp())
+	if launcher.SingleInstanceLock == nil {
+		t.Fatal("expected launcher to hold a single-instance lock")
+	}
+	if launcher.SingleInstanceLock.UniqueId != singleInstanceID {
+		t.Fatalf("unexpected lock id %q", launcher.SingleInstanceLock.UniqueId)
+	}
+	settings := lyn.NewApp()
+	settings.SetWindowMode(lyn.SettingsWindowMode)
+	if newWailsOptions(settings).SingleInstanceLock != nil {
+		t.Fatal("expected settings window to skip the single-instance lock")
+	}
+}
+
 func TestWailsOptionsSettingsWindow(t *testing.T) {
 	app := lyn.NewApp()
 	app.SetWindowMode(lyn.SettingsWindowMode)

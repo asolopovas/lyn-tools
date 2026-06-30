@@ -46,6 +46,29 @@ func TestRestartArgsDoesNotDuplicateStartHidden(t *testing.T) {
 	}
 }
 
+func TestRestartArgsStripsStaleAwaitFlag(t *testing.T) {
+	args := restartArgs([]string{awaitExitFlag, "999", "--debug", "--start-hidden"})
+	if len(args) != 2 || args[0] != "--debug" || args[1] != "--start-hidden" {
+		t.Fatalf("unexpected args %#v", args)
+	}
+}
+
+func TestAwaitExitPID(t *testing.T) {
+	pid, ok := awaitExitPID([]string{"--debug", awaitExitFlag, "1234", "--start-hidden"})
+	if !ok || pid != 1234 {
+		t.Fatalf("unexpected pid %d ok %v", pid, ok)
+	}
+	if _, ok := awaitExitPID([]string{"--debug"}); ok {
+		t.Fatal("did not expect pid")
+	}
+	if _, ok := awaitExitPID([]string{awaitExitFlag}); ok {
+		t.Fatal("did not expect pid without value")
+	}
+	if _, ok := awaitExitPID([]string{awaitExitFlag, "0"}); ok {
+		t.Fatal("did not expect non-positive pid")
+	}
+}
+
 func TestRestartStartsProcessThenQuits(t *testing.T) {
 	originalStart := startRestartProcess
 	originalQuit := quitRuntime
