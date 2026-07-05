@@ -112,6 +112,7 @@ export type WailsApp = {
   ElevationStatus: () => Promise<ElevationStatus>;
   SwitchElevation: (mode: ElevationMode) => Promise<ElevationStatus>;
   Hide: () => Promise<void>;
+  Show: () => Promise<void>;
   WindowMode: () => Promise<WindowMode>;
   OpenSettingsWindow: () => Promise<void>;
   CloseSettingsWindow: () => Promise<void>;

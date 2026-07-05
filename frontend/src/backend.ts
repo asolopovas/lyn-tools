@@ -34,6 +34,7 @@ export const backend: WailsApp = {
   ElevationStatus: () => appBinding().ElevationStatus(),
   SwitchElevation: (mode) => appBinding().SwitchElevation(mode),
   Hide: () => appBinding().Hide(),
+  Show: () => appBinding().Show(),
   WindowMode: () => appBinding().WindowMode(),
   OpenSettingsWindow: () => appBinding().OpenSettingsWindow(),
   CloseSettingsWindow: () => appBinding().CloseSettingsWindow(),

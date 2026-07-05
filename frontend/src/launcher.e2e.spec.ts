@@ -135,6 +135,7 @@ async function installWailsMocks(page: Page): Promise<void> {
               Hide: async () => {
                 state.hides.push("hide");
               },
+              Show: async () => {},
               WindowMode: async () => "launcher",
               OpenSettingsWindow: async () => {
                 state.hides.push("settings");

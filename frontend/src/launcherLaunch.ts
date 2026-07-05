@@ -32,21 +32,30 @@ export function useLauncherLaunch(options: {
     lastLaunchAt = now;
     launchInFlight.value = true;
     void api.Debug("launch.request", `${action} ${project.kind} ${project.path}`);
+    let hidden = false;
     try {
-      const result = await api.Launch({ path: project.path, action, distro: project.distro });
-      if (result.error) {
-        options.status.value = result.error;
-        return;
-      }
-      options.status.value = `Started ${result.command}`;
+      const pending = api.Launch({ path: project.path, action, distro: project.distro });
       if (hide) {
         options.query.value = "";
         options.selectedIndex.value = 0;
-        await options.hideLauncher();
+        hidden = true;
+        void options.hideLauncher();
       }
+      const result = await pending;
+      if (result.error) {
+        options.status.value = result.error;
+        if (hidden) {
+          void api.Show();
+        }
+        return;
+      }
+      options.status.value = `Started ${result.command}`;
     } catch (error) {
       options.status.value = errorMessage(error, "Launch failed");
       void api.Debug("launch.error", options.status.value);
+      if (hidden) {
+        void api.Show();
+      }
     } finally {
       launchInFlight.value = false;
     }
