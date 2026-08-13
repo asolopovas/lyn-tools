@@ -87,6 +87,7 @@ func TestRestartStartsProcessThenQuits(t *testing.T) {
 	}
 	app := NewApp()
 	app.ctx = context.Background()
+	app.window.setContext(app.ctx)
 	app.Restart()
 	if !started || !quit {
 		t.Fatalf("expected started and quit, got started=%v quit=%v", started, quit)
@@ -99,14 +100,14 @@ func TestBeforeCloseMinimizesToTray(t *testing.T) {
 	hidden := false
 	windowHide = func(context.Context) { hidden = true }
 	app := NewApp()
-	app.ctx = context.Background()
+	app.window.setContext(context.Background())
 	if prevent := app.BeforeClose(context.Background()); !prevent {
 		t.Fatal("expected BeforeClose to prevent the close")
 	}
 	if !hidden {
 		t.Fatal("expected window to be hidden")
 	}
-	if app.shown {
+	if app.window.shown {
 		t.Fatal("expected shown to be false after minimize")
 	}
 }
@@ -123,6 +124,7 @@ func TestBeforeCloseAllowsQuit(t *testing.T) {
 	quitRuntime = func(context.Context) {}
 	app := NewApp()
 	app.ctx = context.Background()
+	app.window.setContext(app.ctx)
 	app.Quit()
 	if prevent := app.BeforeClose(context.Background()); prevent {
 		t.Fatal("expected BeforeClose to allow the close after Quit")
@@ -154,8 +156,8 @@ func TestHidePathsReleaseStateMuBeforeWindowHide(t *testing.T) {
 		held := false
 		windowHide = func(context.Context) {
 			called = true
-			if app.stateMu.TryLock() {
-				app.stateMu.Unlock()
+			if app.window.mu.TryLock() {
+				app.window.mu.Unlock()
 				return
 			}
 			held = true
@@ -171,20 +173,21 @@ func TestHidePathsReleaseStateMuBeforeWindowHide(t *testing.T) {
 
 	t.Run("Hide", func(t *testing.T) {
 		app := NewApp()
-		app.ctx = context.Background()
+		app.window.setContext(context.Background())
 		check(t, app, app.Hide)
 	})
 	t.Run("Toggle", func(t *testing.T) {
 		app := NewApp()
-		app.ctx = context.Background()
-		app.shown = true
+		app.window.setContext(context.Background())
+		app.window.shown = true
 		check(t, app, app.Toggle)
 	})
 	t.Run("hideAfterFocusLoss", func(t *testing.T) {
 		app := NewApp()
-		app.ctx = context.Background()
-		app.shown = true
-		check(t, app, func() { app.hideAfterFocusLoss(app.ctx, app.showSequence) })
+		ctx := context.Background()
+		app.window.setContext(ctx)
+		app.window.shown = true
+		check(t, app, func() { app.window.hideAfterFocusLoss(ctx, app.window.showSequence) })
 	})
 }
 
@@ -251,8 +254,9 @@ func TestProjectsReadsVSCodeRecentsLiveWithoutCopyingToStore(t *testing.T) {
 	}
 	app := NewApp()
 	app.ctx = t.Context()
-	app.store = store
-	indexed, err := app.projects()
+	app.projects.configure(t.Context(), DefaultConfig())
+	app.projects.setStore(store)
+	indexed, err := app.projects.projects()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,9 +294,11 @@ func TestProjectsReturnsCachedItemsBeforeScanning(t *testing.T) {
 	}
 	app := NewApp()
 	app.ctx = ctx
-	app.store = store
-	app.config = DefaultConfig()
-	app.config.Scanner.Roots = []string{root}
+	config := DefaultConfig()
+	config.Scanner.Roots = []string{root}
+	app.UseConfig(config)
+	app.projects.configure(ctx, config)
+	app.projects.setStore(store)
 	items, err := app.Projects()
 	if err != nil {
 		t.Fatal(err)

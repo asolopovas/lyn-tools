@@ -2,7 +2,13 @@
 
 Part of the [architecture map](../ARCHITECTURE.md).
 
-[`lyn/app.go`](../lyn/app.go) owns the Wails lifecycle: state, cache refresh, watcher restart, tray, hotkey, window, and frontend bindings. Domains live in `config`, `cache`, `project`, `scanner`, `apps`, `vscode`, `watcher` files under [`lyn/`](../lyn).
+[`lyn/app.go`](../lyn/app.go) is the Wails-facing facade and lifecycle/config orchestrator. Its exported methods preserve the frontend wire contract and delegate behavior to concrete collaborators:
+
+- [`lyn/project_service.go`](../lyn/project_service.go) owns the store, search index, serialized scans, refreshes, launch usage, native launch selection, and launch-target resolution.
+- [`lyn/window_controller.go`](../lyn/window_controller.go) owns visibility, focus sequencing and retries, auto-hide suppression, window mode, and quit state.
+- Lifecycle/config orchestration owns hotkey, watcher, tray, startup, and collaborator initialization and teardown.
+
+Domains live in `config`, `cache`, `project`, `scanner`, `apps`, `vscode`, and `watcher` files under [`lyn/`](../lyn).
 
 - The backend owns all indexing, search, typo-tolerant matching, workspace filtering, and ranking. The frontend never ranks.
 - SQLite stores cached items and launch usage. All SQLite access stays in Go, including VS Code `state.vscdb` reads.
@@ -10,7 +16,7 @@ Part of the [architecture map](../ARCHITECTURE.md).
 ## Close-to-tray
 
 - Closing the launcher window minimizes to tray. The only exit is the tray menu (or a restart/elevation hand-off).
-- Quit/restart/elevation route through `App.requestQuit`, which sets `quitting` before `runtime.Quit`.
+- Quit/restart/elevation route through `windowController.requestQuit`, which sets `quitting` before `runtime.Quit`.
 - One tray icon means one launcher process. The launcher (not the settings window) takes a Wails `SingleInstanceLock`; a second launch surfaces the running window via `App.Show` and exits. Restart spawns the replacement with `--await-exit <pid>`; `WaitForPriorInstance` blocks until the old process exits and frees the mutex before Wails reacquires it.
 - Autostart is installer-owned: the NSIS installer writes the per-machine `HKLM\...\Run\Lyn` entry. `startup.Configure` skips the per-user `HKCU` entry (and clears any stale one) when that `HKLM` entry exists, so login never starts two launchers.
 - `App.BeforeClose` (`OnBeforeClose`) handles Wails closes and is the Linux path.
@@ -21,7 +27,7 @@ Part of the [architecture map](../ARCHITECTURE.md).
 
 `runtime.WindowHide` called from a goroutine blocks on a cross-thread `ShowWindow` and can deadlock. Two rules prevent it:
 
-- Hide paths (`Hide`, `Toggle`, `hideAfterFocusLoss`) release `stateMu` before calling `windowHide`.
+- Hide paths (`Hide`, `Toggle`, `hideAfterFocusLoss`) release the window controller mutex before calling `windowHide`.
 - The close interceptor dispatches `minimizeToTray` on a goroutine and returns immediately.
 
 `windowHide` is a package var so this stays regression-tested.
@@ -47,5 +53,6 @@ Part of the [architecture map](../ARCHITECTURE.md).
 - Dedup keys are case-insensitive for Windows drive paths (`C:\` == `c:\`). Remote (`vscode-remote://`) and Unix/UNC paths keep original casing.
 - Unreachable roots (missing, offline share, permission error) are reported by `ScanProjects` and logged `scan.root.skip`. A scan with skipped roots merges into the cache instead of replacing it.
 - App names containing `install`, `uninstall`, or `setup` (installer and repair shortcuts) are excluded (`applicationNameAllowed`).
+- Application discovery is split between [`lyn/apps.go`](../lyn/apps.go), [`lyn/apps_windows_source.go`](../lyn/apps_windows_source.go), and [`lyn/apps_linux_source.go`](../lyn/apps_linux_source.go). Platform source filenames deliberately avoid Go's `_<goos>.go` constraint so every parser remains testable on every host.
 - On Windows, `windowsSystemTools` adds common system and admin tools (Control Panel, Task Manager, Device Manager, Services, Event Viewer, Disk/Computer Management, Registry Editor, Task Scheduler, Performance Monitor, System Information/Configuration, Settings) as `app` entries pointing at their real `%SystemRoot%` paths, so they launch and resolve icons like any app. Settings uses the `ms-settings:` URI. Entries whose file is absent are skipped, and discovered duplicates dedupe by name.
 - App icons resolve through `App.Icon`. Windows packaged apps (`shell:AppsFolder\…`) have no shell icon, so their icon comes from the `AppxManifest.xml` `Square44x44Logo` asset, picking the highest non-contrast scale variant; everything else uses `SHGetFileInfo`. Resolved icons cache to PNG under the cache `icons` dir.

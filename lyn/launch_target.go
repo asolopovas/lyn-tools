@@ -10,25 +10,25 @@ import (
 	"lyn.tools/launcher/lyn/launch"
 )
 
-func (a *App) resolveLaunchTarget(req launch.Request) launch.Request {
+func (s *projectService) resolveLaunchTarget(req launch.Request) launch.Request {
 	if launch.NormalizedAction(req.Action) != "code" {
 		return req
 	}
-	project, ok := a.findIndexedProject(strings.TrimSpace(req.Path))
+	project, ok := s.findIndexedProject(strings.TrimSpace(req.Path))
 	if !ok || project.Kind != projectKindWordPress {
 		return req
 	}
-	if target, ok := wordpressCodeTarget(project, a.workspacePathsUnder(project)); ok {
+	if target, ok := wordpressCodeTarget(project, s.workspacePathsUnder(project)); ok {
 		req.Path = target
 	}
 	return req
 }
 
-func (a *App) findIndexedProject(path string) (Project, bool) {
+func (s *projectService) findIndexedProject(path string) (Project, bool) {
 	if path == "" {
 		return Project{}, false
 	}
-	for _, item := range a.currentSearchIndex() {
+	for _, item := range s.currentSearchIndex() {
 		if item.project.Path == path {
 			return item.project, true
 		}
@@ -36,9 +36,9 @@ func (a *App) findIndexedProject(path string) (Project, bool) {
 	return Project{}, false
 }
 
-func (a *App) workspacePathsUnder(project Project) []string {
+func (s *projectService) workspacePathsUnder(project Project) []string {
 	var paths []string
-	for _, item := range a.currentSearchIndex() {
+	for _, item := range s.currentSearchIndex() {
 		p := item.project
 		if p.Kind == projectKindVSCodeWorkspace && p.Distro == project.Distro && isLaunchPathUnder(p.Path, project.Path) {
 			paths = append(paths, p.Path)

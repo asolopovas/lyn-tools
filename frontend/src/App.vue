@@ -1,27 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { EventsEmit, EventsOn, WindowCenter, WindowSetSize } from "./wailsRuntime";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { useAppWindow } from "./appWindow";
 import { backend } from "./backend";
 import LauncherPanel from "./components/LauncherPanel.vue";
 import SettingsPanel from "./components/SettingsPanel.vue";
-import {
-  consumeEvent,
-  hasTextInputModifier,
-  isArrowDownKey,
-  isArrowUpKey,
-  isEnterKey,
-  launcherHotkeyEvents,
-  launcherIndexForAltKey,
-  triggerLauncherHotkey,
-} from "./hotkeys";
 import { useLauncherInput, scrollSelectedResultIntoView } from "./launcherInput";
+import { useLauncherKeyboard } from "./launcherKeyboard";
 import { useLauncherLaunch } from "./launcherLaunch";
 import { useLauncherState } from "./launcherState";
 import { useSettingsState } from "./settingsState";
-import { themeByKey, themes } from "./themes";
-const launcherWidth = 640;
-const settingsWidth = 720;
-const settingsHeight = 650;
+import { useThemeState } from "./themeState";
+
 const api = backend;
 const launcher = useLauncherState(api);
 const {
@@ -46,44 +35,8 @@ const {
   updateMatches,
   moveSelection,
 } = launcher;
-const appReady = ref(false);
-const platform = ref("");
-const windowMode = ref<"launcher" | "settings">("launcher");
 const settingsOpen = ref(false);
-const settingsWindow = computed(() => windowMode.value === "settings");
-const themeKeys = computed(() => Object.keys(themes));
-const activeTheme = computed(() => themeByKey(cfg.value?.ui.theme ?? "power-run"));
-const selectedColor = computed(() => cfg.value?.ui.selectionColor || activeTheme.value.selected);
-const selectedTextColor = computed(() => readableTextColor(selectedColor.value));
-const backgroundOpacity = computed(() => cfg.value?.ui.backgroundOpacity ?? 0.98);
-const surfaceColor = computed(() =>
-  rgbaFromHex(activeTheme.value.background, backgroundOpacity.value),
-);
-const themeStyle = computed(() => ({
-  "--lyn-bg": activeTheme.value.background,
-  "--lyn-panel": activeTheme.value.panel,
-  "--lyn-panel-alt": activeTheme.value.panelAlt,
-  "--lyn-border": activeTheme.value.border,
-  "--lyn-text": activeTheme.value.text,
-  "--lyn-muted": activeTheme.value.muted,
-  "--lyn-accent": activeTheme.value.accent,
-  "--lyn-selected": selectedColor.value,
-  "--lyn-selected-text": selectedTextColor.value,
-  "--lyn-opacity": String(backgroundOpacity.value),
-  "--lyn-surface": surfaceColor.value,
-}));
-watch(
-  themeStyle,
-  (style) => {
-    const root = document.documentElement;
-    for (const [name, value] of Object.entries(style)) {
-      root.style.setProperty(name, String(value));
-    }
-  },
-  { immediate: true },
-);
-const launcherHeight = computed(() => (settingsOpen.value ? settingsHeight : 306));
-const windowWidth = computed(() => (settingsOpen.value ? settingsWidth : launcherWidth));
+const { themeKeys } = useThemeState(cfg);
 const settings = useSettingsState({
   cfg,
   status,
@@ -112,6 +65,7 @@ const {
 const wslPresent = computed(
   () => wslDistros.value.length > 0 || (cfg.value?.scanner.wslRoots?.length ?? 0) > 0,
 );
+const { queryInput, focusQuery } = useLauncherInput();
 const {
   launchAtIndex,
   launchDefault,
@@ -128,10 +82,39 @@ const {
   selectedProject,
   hideLauncher,
 });
-const { queryInput, focusQuery } = useLauncherInput();
-let launchSelectionPoll = 0;
-let hideOnBlurTimer = 0;
-let eventDisposers: Array<() => void> = [];
+const appWindow = useAppWindow({
+  api,
+  cfg,
+  projects,
+  query,
+  selectedIndex,
+  status,
+  settingsOpen,
+  blurHideSuppressed,
+  ensureInitialProjects,
+  loadConfigOnly,
+  loadElevationStatus,
+  loadWSLDistros,
+  focusQuery,
+  refreshForShow,
+  refreshFromWatcher,
+  updateNativeLaunchSelection,
+});
+const { appReady, platform, settingsWindow, launcherHeight } = appWindow;
+const keyboard = useLauncherKeyboard({
+  recordingHotkey,
+  settingsOpen,
+  query,
+  captureHotkey,
+  openSettings,
+  closeSettings,
+  hideLauncher,
+  moveSelection,
+  launchAtIndex,
+  launchSelected,
+  debug: api.Debug,
+  queryInput,
+});
 
 watch(matches, () => {
   void loadVisibleIcons();
@@ -143,244 +126,28 @@ watch(selectedProject, () => {
   updateNativeLaunchSelection();
 });
 
-watch(settingsOpen, (open) => {
-  if (open) {
-    void loadElevationStatus();
-    void loadWSLDistros();
-  }
-  void nextTick(() => {
-    placeLauncher();
-    updateNativeLaunchSelection();
-  });
-});
-
-watch(launcherHeight, (height) => {
-  placeLauncher(height);
-});
-
 async function openSettings(): Promise<void> {
-  if (settingsWindow.value) {
-    return;
-  }
-  blurHideSuppressed.value = true;
-  try {
-    await api.OpenSettingsWindow();
-  } catch (error) {
-    status.value = error instanceof Error ? error.message : "Failed to open settings";
-  } finally {
-    window.setTimeout(() => {
-      blurHideSuppressed.value = false;
-    }, 700);
-  }
+  await appWindow.openSettings();
 }
 
 async function closeSettings(): Promise<void> {
-  if (settingsWindow.value) {
-    await api.CloseSettingsWindow();
-    return;
-  }
-  settingsOpen.value = false;
-}
-
-function rgbaFromHex(hex: string, opacity: number): string {
-  const match = /^#([\da-f]{6})$/i.exec(hex);
-  if (!match) {
-    return hex;
-  }
-  const value = Number.parseInt(match[1]!, 16);
-  const red = (value >> 16) & 255;
-  const green = (value >> 8) & 255;
-  const blue = value & 255;
-  const alpha = Math.min(Math.max(opacity, 0), 1);
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}
-
-function readableTextColor(color: string): "#000000" | "#ffffff" {
-  const match = /^#([\da-f]{6})$/i.exec(color);
-  if (!match) {
-    return "#ffffff";
-  }
-  const value = Number.parseInt(match[1]!, 16);
-  const red = (value >> 16) & 255;
-  const green = (value >> 8) & 255;
-  const blue = value & 255;
-  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
-  return luminance > 0.55 ? "#000000" : "#ffffff";
-}
-
-function prepareForShow(): void {
-  if (cfg.value?.ui.clearQueryOnShow ?? true) {
-    query.value = "";
-    selectedIndex.value = 0;
-  }
-  focusQuery();
-}
-
-function placeLauncher(height = launcherHeight.value): void {
-  WindowSetSize(windowWidth.value, height);
-  WindowCenter();
+  await appWindow.closeSettings();
 }
 
 async function hideLauncher(): Promise<void> {
-  settingsOpen.value = false;
-  await api.Hide();
-}
-
-function onWindowBlur(): void {
-  if (hideOnBlurTimer) {
-    window.clearTimeout(hideOnBlurTimer);
-  }
-  hideOnBlurTimer = window.setTimeout(() => {
-    hideOnBlurTimer = 0;
-    if (document.hasFocus() || blurHideSuppressed.value) {
-      return;
-    }
-    void api.Debug("window.blur", "hide");
-    void hideLauncher();
-  }, 120);
-}
-
-function focusInput(input: HTMLInputElement): void {
-  input.focus({ preventScroll: true });
-}
-
-function replaceQuery(update: (value: string) => string, input: HTMLInputElement): void {
-  query.value = update(query.value);
-  focusInput(input);
-}
-
-function consumeAndRun(event: KeyboardEvent, action: () => void, stopPropagation = true): void {
-  consumeEvent(event, stopPropagation);
-  action();
-}
-
-function onLauncherShown(...data: unknown[]): void {
-  const showSeq = typeof data[0] === "number" ? data[0] : 0;
-  void (async () => {
-    settingsOpen.value = false;
-    prepareForShow();
-    if (!cfg.value || !projects.value.length) {
-      await ensureInitialProjects();
-    }
-    placeLauncher();
-    focusQuery();
-    updateNativeLaunchSelection();
-    EventsEmit("launcher-ready", showSeq);
-    void refreshForShow();
-  })();
-}
-
-function onKeydown(event: KeyboardEvent): void {
-  if (recordingHotkey.value) {
-    captureHotkey(event);
-    return;
-  }
-  if (event.ctrlKey && event.key === ",") {
-    consumeEvent(event, false);
-    void openSettings();
-    return;
-  }
-  if (event.key === "Escape") {
-    consumeAndRun(event, () => {
-      if (settingsOpen.value) {
-        void closeSettings();
-        return;
-      }
-      void hideLauncher();
-    });
-    return;
-  }
-  if (settingsOpen.value) {
-    return;
-  }
-  if (isArrowDownKey(event)) {
-    consumeAndRun(event, () => moveSelection(1));
-    return;
-  }
-  if (isArrowUpKey(event)) {
-    consumeAndRun(event, () => moveSelection(-1));
-    return;
-  }
-  const altIndex = launcherIndexForAltKey(event);
-  if (altIndex !== null) {
-    consumeAndRun(event, () => launchAtIndex(altIndex));
-    return;
-  }
-  if (isEnterKey(event)) {
-    void api.Debug(
-      "hotkey.event",
-      `${event.type} key=${event.key} code=${event.code} ctrl=${event.ctrlKey} shift=${event.shiftKey} alt=${event.altKey} meta=${event.metaKey}`,
-    );
-  }
-  if (triggerLauncherHotkey(event, launchSelected, true)) {
-    return;
-  }
-  const input = queryInput();
-  if (hasTextInputModifier(event)) {
-    return;
-  }
-  if (!input || document.activeElement === input) {
-    return;
-  }
-  if (event.key.length === 1) {
-    consumeAndRun(event, () => replaceQuery((value) => value + event.key, input), false);
-    return;
-  }
-  if (event.key === "Backspace" && query.value) {
-    consumeAndRun(event, () => replaceQuery((value) => value.slice(0, -1), input), false);
-  }
+  await appWindow.hideLauncher();
 }
 
 onMounted(() => {
   void (async () => {
-    windowMode.value = await api.WindowMode();
-    platform.value = await api.Platform();
-    settingsOpen.value = settingsWindow.value;
-    if (settingsWindow.value) {
-      await loadConfigOnly();
-      await loadElevationStatus();
-      placeLauncher();
-      appReady.value = true;
-      for (const eventName of launcherHotkeyEvents) {
-        window.addEventListener(eventName, onKeydown, true);
-      }
-      return;
-    }
-    appReady.value = true;
-    void ensureInitialProjects();
-    placeLauncher();
-    focusQuery();
-    for (const eventName of launcherHotkeyEvents) {
-      window.addEventListener(eventName, onKeydown, true);
-    }
-    window.addEventListener("focus", focusQuery);
-    window.addEventListener("blur", onWindowBlur);
-    launchSelectionPoll = window.setInterval(updateNativeLaunchSelection, 100);
-    updateNativeLaunchSelection();
-    eventDisposers = [
-      EventsOn("launcher-shown", onLauncherShown),
-      EventsOn("projects-updated", () => {
-        void refreshFromWatcher();
-      }),
-    ];
+    await appWindow.mount();
+    keyboard.mount();
   })();
 });
 
 onUnmounted(() => {
-  for (const eventName of launcherHotkeyEvents) {
-    window.removeEventListener(eventName, onKeydown, true);
-  }
-  window.removeEventListener("focus", focusQuery);
-  window.removeEventListener("blur", onWindowBlur);
-  window.clearInterval(launchSelectionPoll);
-  if (hideOnBlurTimer) {
-    window.clearTimeout(hideOnBlurTimer);
-  }
-  void api.SetLaunchSelection({ path: "", action: "code" });
-  for (const dispose of eventDisposers) {
-    dispose();
-  }
-  eventDisposers = [];
+  keyboard.unmount();
+  appWindow.unmount();
 });
 </script>
 

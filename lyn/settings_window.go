@@ -18,13 +18,7 @@ const (
 )
 
 func (a *App) SetWindowMode(mode WindowMode) {
-	a.stateMu.Lock()
-	defer a.stateMu.Unlock()
-	if mode == SettingsWindowMode {
-		a.mode = mode
-		return
-	}
-	a.mode = LauncherWindowMode
+	a.window.setMode(mode)
 }
 
 func (a *App) WindowMode() string {
@@ -32,12 +26,7 @@ func (a *App) WindowMode() string {
 }
 
 func (a *App) windowMode() WindowMode {
-	a.stateMu.Lock()
-	defer a.stateMu.Unlock()
-	if a.mode == SettingsWindowMode {
-		return SettingsWindowMode
-	}
-	return LauncherWindowMode
+	return a.window.windowMode()
 }
 
 func (a *App) OpenSettingsWindow() error {

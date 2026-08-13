@@ -29,8 +29,8 @@ func TestAppLaunchRoutesFrontendRequestAndRecordsUsage(t *testing.T) {
 		t.Fatal(err)
 	}
 	app := NewApp()
-	app.ctx = ctx
-	app.store = store
+	app.projects.configure(ctx, DefaultConfig())
+	app.projects.setStore(store)
 	result := app.Launch(request)
 	if result.Error != "" || result.Command != "code" {
 		t.Fatalf("unexpected result %#v", result)
@@ -60,8 +60,8 @@ func TestAppLaunchDoesNotRecordReveal(t *testing.T) {
 	}
 	defer store.Close()
 	app := NewApp()
-	app.ctx = ctx
-	app.store = store
+	app.projects.configure(ctx, DefaultConfig())
+	app.projects.setStore(store)
 	result := app.Launch(launch.Request{Path: `C:\src\lyn-tools`, Action: "reveal"})
 	if result.Error != "" {
 		t.Fatalf("unexpected result %#v", result)

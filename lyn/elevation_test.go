@@ -42,6 +42,7 @@ func TestSwitchElevationStartsTargetModeThenQuits(t *testing.T) {
 	quitRuntime = func(context.Context) { quit = true }
 	app := NewApp()
 	app.ctx = context.Background()
+	app.window.setContext(app.ctx)
 	status, err := app.SwitchElevation(elevationModeAdmin)
 	if err != nil {
 		t.Fatal(err)
@@ -73,6 +74,7 @@ func TestSwitchElevationNoopsForCurrentMode(t *testing.T) {
 	quitRuntime = func(context.Context) { t.Fatal("unexpected quit") }
 	app := NewApp()
 	app.ctx = context.Background()
+	app.window.setContext(app.ctx)
 	status, err := app.SwitchElevation(elevationModeAdmin)
 	if err != nil {
 		t.Fatal(err)
@@ -99,6 +101,7 @@ func TestSwitchElevationReturnsStartErrorWithoutQuit(t *testing.T) {
 	quitRuntime = func(context.Context) { t.Fatal("unexpected quit") }
 	app := NewApp()
 	app.ctx = context.Background()
+	app.window.setContext(app.ctx)
 	_, err := app.SwitchElevation(elevationModeAdmin)
 	if !errors.Is(err, startErr) {
 		t.Fatalf("expected %v, got %v", startErr, err)

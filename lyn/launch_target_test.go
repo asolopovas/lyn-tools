@@ -55,21 +55,21 @@ func TestResolveLaunchTargetWordpressVsOthers(t *testing.T) {
 		t.Fatal(err)
 	}
 	app := NewApp()
-	app.setSearchIndex([]Project{
+	app.projects.setSearchIndex([]Project{
 		{Path: site, Kind: projectKindWordPress},
 		{Path: laravel, Kind: projectKindLaravel},
 		{Path: goProject, Kind: projectKindGo},
 	})
 
-	if got := app.resolveLaunchTarget(launch.Request{Path: site, Action: "code"}); got.Path != theme {
+	if got := app.projects.resolveLaunchTarget(launch.Request{Path: site, Action: "code"}); got.Path != theme {
 		t.Fatalf("wordpress should open theme %q, got %q", theme, got.Path)
 	}
 	for _, path := range []string{laravel, goProject} {
-		if got := app.resolveLaunchTarget(launch.Request{Path: path, Action: "code"}); got.Path != path {
+		if got := app.projects.resolveLaunchTarget(launch.Request{Path: path, Action: "code"}); got.Path != path {
 			t.Fatalf("non-wordpress root should be unchanged, got %q for %q", got.Path, path)
 		}
 	}
-	if got := app.resolveLaunchTarget(launch.Request{Path: site, Action: "reveal"}); got.Path != site {
+	if got := app.projects.resolveLaunchTarget(launch.Request{Path: site, Action: "reveal"}); got.Path != site {
 		t.Fatalf("non-code action should be unchanged, got %q", got.Path)
 	}
 }

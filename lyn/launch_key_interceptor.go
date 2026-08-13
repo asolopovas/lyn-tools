@@ -20,7 +20,7 @@ func (a *App) registerLaunchKeyInterceptor() {
 		if !handled || !isWindowForeground() {
 			return false
 		}
-		if !a.hasCachedLaunchSelection() {
+		if !a.projects.hasCachedLaunchSelection() {
 			a.debugLog("launch.native.missing")
 			return false
 		}
@@ -36,15 +36,8 @@ func launchablePath(path string) bool {
 	return strings.TrimSpace(path) != "" && !isSystemCommandPath(path)
 }
 
-func (a *App) hasCachedLaunchSelection() bool {
-	a.launchSelectionMu.Lock()
-	path := a.launchSelection.Path
-	a.launchSelectionMu.Unlock()
-	return launchablePath(path)
-}
-
 func (a *App) runNativeShortcut(action string) {
-	request := a.currentLaunchSelection()
+	request := a.projects.currentLaunchSelection()
 	if !launchablePath(request.Path) {
 		a.debugLog("launch.native.missing")
 		return
@@ -90,41 +83,4 @@ func nativeShortcutAction(vkCode uint32) (string, bool) {
 	default:
 		return "", false
 	}
-}
-
-func (a *App) currentLaunchSelection() launch.Request {
-	a.launchSelectionMu.Lock()
-	request := a.launchSelection
-	a.launchSelectionMu.Unlock()
-	request.Action = launch.NormalizedAction(request.Action)
-	if strings.TrimSpace(request.Path) != "" {
-		if isSystemCommandPath(request.Path) {
-			return launch.Request{}
-		}
-		return request
-	}
-	ctx, _, store := a.snapshot()
-	if store == nil {
-		return request
-	}
-	projects, err := store.ListProjects(ctx)
-	if err != nil || len(projects) == 0 {
-		return request
-	}
-	project := Project{}
-	for _, candidate := range projects {
-		if candidate.Kind != projectKindSystemCommand && !isSystemCommandPath(candidate.Path) {
-			project = candidate
-			break
-		}
-	}
-	if project.Path == "" {
-		return request
-	}
-	action := "code"
-	if project.Kind == projectKindApp {
-		action = "open"
-	}
-	a.debugLog("launch.native.fallback", "action", action, "path", project.Path, "error", err)
-	return launch.Request{Path: project.Path, Action: action}
 }

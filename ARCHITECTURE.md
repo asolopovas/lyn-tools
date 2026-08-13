@@ -7,7 +7,7 @@ This file is the top-level map: package layout and the layering rules that hold 
 ## Layout
 
 - Root Go files bootstrap the app, embed frontend assets, and enforce structure.
-- [`lyn/`](lyn) is the backend package. [`lyn/hotkey/`](lyn/hotkey), [`lyn/launch/`](lyn/launch), [`lyn/startup/`](lyn/startup), [`lyn/tray/`](lyn/tray) are focused domains imported by [`lyn/app.go`](lyn/app.go).
+- [`lyn/`](lyn) is the backend package. [`lyn/app.go`](lyn/app.go) is the Wails-facing facade and lifecycle orchestrator; [`lyn/project_service.go`](lyn/project_service.go) and [`lyn/window_controller.go`](lyn/window_controller.go) own project and window behavior. [`lyn/hotkey/`](lyn/hotkey), [`lyn/launch/`](lyn/launch), [`lyn/startup/`](lyn/startup), and [`lyn/tray/`](lyn/tray) are focused domains used by the backend collaborators.
 - [`frontend/`](frontend) is the Vue/Vite workspace. `frontend/dist` is embedded for production.
 - Add folders only for cohesive multi-file packages, build tags, generated output, assets, or tool-required paths. Keep small Go code in root files.
 - Avoid `cmd`, `internal`, `pkg` until multiple binaries, reusable internals, or public APIs justify them.
@@ -15,7 +15,7 @@ This file is the top-level map: package layout and the layering rules that hold 
 ## Layering
 
 - The frontend is a thin input/render layer. The backend owns all indexing, search, matching, and ranking. The frontend never ranks.
-- Dependency direction: root `main` and [`lyn/app.go`](lyn/app.go) import the domain packages ([`lyn/hotkey/`](lyn/hotkey), [`lyn/launch/`](lyn/launch), [`lyn/startup/`](lyn/startup), [`lyn/tray/`](lyn/tray)). Domains never import the parent `lyn` package and never import each other.
+- Dependency direction: root `main` and the `lyn` facade/collaborators import the domain packages ([`lyn/hotkey/`](lyn/hotkey), [`lyn/launch/`](lyn/launch), [`lyn/startup/`](lyn/startup), [`lyn/tray/`](lyn/tray)). Domains never import the parent `lyn` package and never import each other.
 - [`architecture_test.go`](architecture_test.go) enforces folder rules, the layering direction, and that links in these docs resolve, so structure and docs cannot drift.
 
 ## Subsystems

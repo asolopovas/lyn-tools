@@ -11,7 +11,7 @@ import (
 func TestCurrentLaunchSelectionUsesExplicitFrontendSelection(t *testing.T) {
 	app := NewApp()
 	app.SetLaunchSelection(launch.Request{Path: `C:\src\selected`, Action: "code"})
-	request := app.currentLaunchSelection()
+	request := app.projects.currentLaunchSelection()
 	if request.Path != `C:\src\selected` || request.Action != "code" {
 		t.Fatalf("unexpected request %#v", request)
 	}
@@ -20,7 +20,7 @@ func TestCurrentLaunchSelectionUsesExplicitFrontendSelection(t *testing.T) {
 func TestCurrentLaunchSelectionRejectsSystemCommandSelection(t *testing.T) {
 	app := NewApp()
 	app.SetLaunchSelection(launch.Request{Path: "lyn:system:logout", Action: "open"})
-	request := app.currentLaunchSelection()
+	request := app.projects.currentLaunchSelection()
 	if request.Path != "" {
 		t.Fatalf("unexpected request %#v", request)
 	}
@@ -28,15 +28,15 @@ func TestCurrentLaunchSelectionRejectsSystemCommandSelection(t *testing.T) {
 
 func TestHasCachedLaunchSelectionAvoidsStoreInHookPath(t *testing.T) {
 	app := NewApp()
-	if app.hasCachedLaunchSelection() {
+	if app.projects.hasCachedLaunchSelection() {
 		t.Fatal("expected no cached selection by default")
 	}
 	app.SetLaunchSelection(launch.Request{Path: `C:\src\selected`, Action: "code"})
-	if !app.hasCachedLaunchSelection() {
+	if !app.projects.hasCachedLaunchSelection() {
 		t.Fatal("expected cached selection to be reported")
 	}
 	app.SetLaunchSelection(launch.Request{Path: "lyn:system:logout", Action: "open"})
-	if app.hasCachedLaunchSelection() {
+	if app.projects.hasCachedLaunchSelection() {
 		t.Fatal("expected disabled system selection to be rejected")
 	}
 }
@@ -99,9 +99,9 @@ func TestCurrentLaunchSelectionFallsBackToTopStoredProject(t *testing.T) {
 		t.Fatal(err)
 	}
 	app := NewApp()
-	app.ctx = ctx
-	app.store = store
-	request := app.currentLaunchSelection()
+	app.projects.configure(ctx, DefaultConfig())
+	app.projects.setStore(store)
+	request := app.projects.currentLaunchSelection()
 	if request.Path != `C:\src\lyn-tools` || request.Action != "code" {
 		t.Fatalf("unexpected fallback request %#v", request)
 	}

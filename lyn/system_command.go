@@ -47,7 +47,8 @@ func (a *App) installSystemToolsScript() {
 	if runtime.GOOS != "linux" {
 		return
 	}
-	path, err := sysadmin.EnsureScript(a.config.Cache.Dir)
+	_, config, _ := a.snapshot()
+	path, err := sysadmin.EnsureScript(config.Cache.Dir)
 	if err != nil {
 		a.debugLog("sysadmin.script.error", "error", err)
 		return

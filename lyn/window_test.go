@@ -20,8 +20,8 @@ func TestToggleShowsWhenTrackedWindowWasMinimizedExternally(t *testing.T) {
 	isNativeWindowMinimized = func() bool { return true }
 	t.Cleanup(func() { isNativeWindowMinimized = original })
 	app := NewApp()
-	app.shown = true
-	if app.shouldHideOnToggleLocked() {
+	app.window.shown = true
+	if app.window.shouldHideOnToggleLocked() {
 		t.Fatal("expected externally minimized window to be shown instead of hidden")
 	}
 }
@@ -31,8 +31,8 @@ func TestToggleHidesWhenTrackedWindowIsShown(t *testing.T) {
 	isNativeWindowMinimized = func() bool { return false }
 	t.Cleanup(func() { isNativeWindowMinimized = original })
 	app := NewApp()
-	app.shown = true
-	if !app.shouldHideOnToggleLocked() {
+	app.window.shown = true
+	if !app.window.shouldHideOnToggleLocked() {
 		t.Fatal("expected shown window to hide")
 	}
 }
