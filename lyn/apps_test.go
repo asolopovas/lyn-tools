@@ -456,6 +456,40 @@ func TestScanLinuxApplications(t *testing.T) {
 	}
 }
 
+func TestLinuxApplicationDirsUseXDGSearchPath(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", "/example/home")
+	t.Setenv("XDG_DATA_DIRS", "/example/flatpak:/example/system:/example/flatpak")
+	want := []string{
+		"/example/home/applications",
+		"/example/flatpak/applications",
+		"/example/system/applications",
+	}
+	dirs := linuxApplicationDirs()
+	if len(dirs) != len(want) {
+		t.Fatalf("unexpected directories %#v", dirs)
+	}
+	for i := range want {
+		if dirs[i] != want[i] {
+			t.Fatalf("directory %d = %q, want %q", i, dirs[i], want[i])
+		}
+	}
+}
+
+func TestLinuxApplicationWithMissingTryExecIsSkipped(t *testing.T) {
+	dir := t.TempDir()
+	data := []byte("[Desktop Entry]\nName=Stale App\nTryExec=/missing/example-app\nExec=/missing/example-app\n")
+	if err := os.WriteFile(filepath.Join(dir, "stale.desktop"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	apps, err := scanApplicationDirs(context.Background(), []string{dir}, "linux")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(apps) != 0 {
+		t.Fatalf("unexpected app count %d: %#v", len(apps), apps)
+	}
+}
+
 func TestHiddenLinuxApplicationIsSkipped(t *testing.T) {
 	dir := t.TempDir()
 	data := []byte("[Desktop Entry]\nName=Hidden App\nNoDisplay=true\nExec=hidden\n")

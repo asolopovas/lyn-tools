@@ -157,7 +157,7 @@ func openCommand(path string, distro string, goos string) launchCommand {
 		return launchCommand{Name: "open", Args: []string{path}}
 	default:
 		if strings.EqualFold(filepath.Ext(path), ".desktop") {
-			return launchCommand{Name: "gtk-launch", Args: []string{strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))}}
+			return launchCommand{Name: "gio", Args: []string{"launch", path}}
 		}
 		return launchCommand{Name: "xdg-open", Args: []string{path}}
 	}

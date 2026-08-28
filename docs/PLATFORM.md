@@ -22,7 +22,7 @@ Part of the [architecture map](../ARCHITECTURE.md).
 
 ## Linux
 
-- **Discovery:** uses desktop entries and common icon theme paths.
+- **Discovery:** indexes desktop entries from `XDG_DATA_HOME` and `XDG_DATA_DIRS`, including Flatpak exports, ignores entries whose `TryExec` is unavailable, and launches entries by file path through `gio`.
 - **Global hotkey:** owns its X11 grab directly ([`lyn/hotkey/hotkeys_linux.go`](../lyn/hotkey/hotkeys_linux.go) + [`lyn/hotkey/hotkey_grab_linux.c`](../lyn/hotkey/hotkey_grab_linux.c)) instead of `golang.design/x/hotkey`, which fired on any keystroke on empty xmonad workspaces.
   - Grabs keycode + modifier mask, runs one filtered event loop, and fires only when `keycode` matches and `(state & realModifierMask) == binding` (ignoring Num/Caps Lock and XKB group).
   - Grabs every lock-variant of the mask since `XGrabKey` matches exactly.

@@ -269,7 +269,7 @@ func TestBuildLaunchCommandLinuxDesktopApp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cmd.Name != "gtk-launch" || cmd.Args[0] != "example" {
+	if cmd.Name != "gio" || len(cmd.Args) != 2 || cmd.Args[0] != "launch" || cmd.Args[1] != "/usr/share/applications/example.desktop" {
 		t.Fatalf("unexpected command %#v", cmd)
 	}
 }

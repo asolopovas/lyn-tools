@@ -2,17 +2,37 @@ package lyn
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
 func linuxApplicationDirs() []string {
 	home, _ := os.UserHomeDir()
-	return []string{
-		"/usr/share/applications",
-		"/usr/local/share/applications",
-		filepath.Join(home, ".local", "share", "applications"),
+	dataHome := strings.TrimSpace(os.Getenv("XDG_DATA_HOME"))
+	if dataHome == "" {
+		dataHome = filepath.Join(home, ".local", "share")
 	}
+	dataDirs := strings.TrimSpace(os.Getenv("XDG_DATA_DIRS"))
+	if dataDirs == "" {
+		dataDirs = "/usr/local/share:/usr/share"
+	}
+	roots := append([]string{dataHome}, filepath.SplitList(dataDirs)...)
+	dirs := make([]string, 0, len(roots))
+	seen := make(map[string]struct{}, len(roots))
+	for _, root := range roots {
+		root = strings.TrimSpace(root)
+		if root == "" {
+			continue
+		}
+		dir := filepath.Clean(filepath.Join(root, "applications"))
+		if _, ok := seen[dir]; ok {
+			continue
+		}
+		seen[dir] = struct{}{}
+		dirs = append(dirs, dir)
+	}
+	return dirs
 }
 
 func desktopApplicationName(path string) (string, bool) {
@@ -22,6 +42,11 @@ func desktopApplicationName(path string) (string, bool) {
 	}
 	if !desktopShownIn(entry, currentDesktops()) {
 		return "", false
+	}
+	if tryExec := strings.TrimSpace(entry["TryExec"]); tryExec != "" {
+		if _, err := exec.LookPath(tryExec); err != nil {
+			return "", false
+		}
 	}
 	name := strings.TrimSpace(entry["Name"])
 	return name, name != ""
