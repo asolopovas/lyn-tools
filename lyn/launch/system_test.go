@@ -5,24 +5,24 @@ import (
 	"testing"
 )
 
-func TestSystemCommandLinuxLogoutUsesUsername(t *testing.T) {
-	original := lookupUsername
-	t.Cleanup(func() { lookupUsername = original })
-	lookupUsername = func() string { return "example" }
+func TestSystemCommandLinuxLogoutUsesActiveSession(t *testing.T) {
+	original := lookupSessionID
+	t.Cleanup(func() { lookupSessionID = original })
+	lookupSessionID = func() string { return "example-session" }
 
 	cmd, err := BuildLaunchCommand(Request{Path: "lyn:system:logout", Action: "open"}, "linux")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cmd.Name != "loginctl" || strings.Join(cmd.Args, " ") != "terminate-user example" {
+	if cmd.Name != "loginctl" || strings.Join(cmd.Args, " ") != "terminate-session example-session" {
 		t.Fatalf("unexpected logout command %+v", cmd)
 	}
 }
 
-func TestSystemCommandLinuxLogoutWithoutUserFails(t *testing.T) {
-	original := lookupUsername
-	t.Cleanup(func() { lookupUsername = original })
-	lookupUsername = func() string { return "" }
+func TestSystemCommandLinuxLogoutWithoutSessionFails(t *testing.T) {
+	original := lookupSessionID
+	t.Cleanup(func() { lookupSessionID = original })
+	lookupSessionID = func() string { return "" }
 
 	if _, err := BuildLaunchCommand(Request{Path: "lyn:system:logout", Action: "open"}, "linux"); err == nil {
 		t.Fatal("expected error when no active user session")

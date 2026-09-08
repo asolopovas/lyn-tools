@@ -2,13 +2,13 @@ package launch
 
 import (
 	"errors"
-	"os/user"
+	"os"
 	"strings"
 )
 
 const AdminToolPrefix = "lyn:system:admin:"
 
-var lookupUsername = currentUsername
+var lookupSessionID = currentSessionID
 
 var adminScriptPath string
 
@@ -47,11 +47,11 @@ func systemCommand(path string, goos string) (launchCommand, error) {
 		case "lyn:system:shutdown":
 			return launchCommand{Name: "systemctl", Args: []string{"poweroff"}}, nil
 		case "lyn:system:logout":
-			name := lookupUsername()
-			if name == "" {
+			sessionID := lookupSessionID()
+			if sessionID == "" {
 				return launchCommand{}, errors.New("log out is unavailable: no active user session")
 			}
-			return launchCommand{Name: "loginctl", Args: []string{"terminate-user", name}}, nil
+			return launchCommand{Name: "loginctl", Args: []string{"terminate-session", sessionID}}, nil
 		}
 	}
 	return launchCommand{}, errors.New("unknown system command")
@@ -68,9 +68,6 @@ func osascriptCommand(verb string) launchCommand {
 	return launchCommand{Name: "osascript", Args: []string{"-e", `tell application "System Events" to ` + verb}}
 }
 
-func currentUsername() string {
-	if u, err := user.Current(); err == nil {
-		return u.Username
-	}
-	return ""
+func currentSessionID() string {
+	return strings.TrimSpace(os.Getenv("XDG_SESSION_ID"))
 }
