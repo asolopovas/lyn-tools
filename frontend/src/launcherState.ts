@@ -23,6 +23,7 @@ export function useLauncherState(api: WailsApp = backend) {
     return cfg.value ? `${projects.value.length} projects` : "Loading";
   });
   let initialLoad: Promise<void> | null = null;
+  let iconLoad: Promise<void> | null = null;
   let searchSequence = 0;
 
   watch(query, () => {
@@ -93,30 +94,40 @@ export function useLauncherState(api: WailsApp = backend) {
   }
 
   async function loadVisibleIcons(): Promise<void> {
+    if (iconLoad) {
+      await iconLoad;
+    }
     const missing = matches.value.filter(
       (project) => project.kind === "app" && !projectIcons.value[project.path],
     );
     if (!missing.length) {
       return;
     }
-    const loaded = await Promise.all(
-      missing.map(async (project) => {
-        try {
-          return [project.path, await api.Icon(project.path)] as const;
-        } catch {
-          return [project.path, ""] as const;
-        }
-      }),
-    );
-    const resolved = loaded.filter(([, icon]) => icon !== "");
-    if (!resolved.length) {
-      return;
+    iconLoad = (async () => {
+      const loaded = await Promise.all(
+        missing.map(async (project) => {
+          try {
+            return [project.path, await api.Icon(project.path)] as const;
+          } catch {
+            return [project.path, ""] as const;
+          }
+        }),
+      );
+      const resolved = loaded.filter(([, icon]) => icon !== "");
+      if (!resolved.length) {
+        return;
+      }
+      projectIcons.value = {
+        ...projectIcons.value,
+        ...Object.fromEntries(resolved),
+      };
+      cacheState();
+    })();
+    try {
+      await iconLoad;
+    } finally {
+      iconLoad = null;
     }
-    projectIcons.value = {
-      ...projectIcons.value,
-      ...Object.fromEntries(resolved),
-    };
-    cacheState();
   }
 
   async function scan(): Promise<void> {

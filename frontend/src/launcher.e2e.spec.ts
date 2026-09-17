@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import path from "node:path";
+import { icons } from "./icons";
 
 type LaunchCall = { path: string; action: string };
 type DebugCall = { stage: string; detail: string };
@@ -27,7 +28,13 @@ const scrollProjects = Array.from({ length: 12 }, (_, index) => ({
   name: `lyn-scroll-project-${index + 3}`,
   path: path.join(projectPath, `lyn-scroll-project-${index + 3}`),
 }));
-const projects = [project, secondProject, ...scrollProjects];
+const brokenIconApp = {
+  ...project,
+  name: "broken-icon-app",
+  path: "shell:AppsFolder\\Example.App_abc123!App",
+  kind: "app",
+};
+const projects = [project, secondProject, ...scrollProjects, brokenIconApp];
 const config = {
   path: path.join(appData, "lyn", "lyn.json"),
   cache: { dir: path.join(localAppData, "lyn") },
@@ -122,7 +129,7 @@ async function installWailsMocks(page: Page): Promise<void> {
                   )
                   .slice(0, 12),
               Scan: async () => ({ count: 1 }),
-              Icon: async () => "",
+              Icon: async () => "data:image/png;base64,invalid",
               Launch: async (request: LaunchCall) => {
                 state.launches.push(request);
                 return { command: "code", args: [request.path] };
@@ -209,6 +216,13 @@ test("Enter in the launcher input logs and launches selected project in Code", a
   await expect
     .poll(() => page.evaluate(() => window.__lynDebugs.map((entry) => entry.stage)))
     .toContain("launch.request");
+});
+
+test("failed app icons fall back to the app glyph", async ({ page }) => {
+  await fillQuery(page, brokenIconApp.name);
+  const row = page.locator("li").filter({ hasText: brokenIconApp.name });
+  await expect(row.locator("img")).toHaveCount(0);
+  await expect(row.locator("svg").first().locator("path")).toHaveAttribute("d", icons.grid);
 });
 
 test("mouse launching selected row reaches the backend launch binding", async ({ page }) => {

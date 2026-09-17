@@ -30,7 +30,7 @@ export function writeLauncherCache(
   }
   try {
     const state: CachedLauncherState = {
-      version: 1,
+      version: 2,
       cfg,
       projects,
       projectIcons,
@@ -54,7 +54,7 @@ function isCachedLauncherState(value: unknown): value is CachedLauncherState {
     return false;
   }
   return (
-    value.version === 1 &&
+    value.version === 2 &&
     isLynConfig(value.cfg) &&
     Array.isArray(value.projects) &&
     value.projects.every(isProject) &&

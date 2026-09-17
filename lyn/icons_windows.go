@@ -109,9 +109,10 @@ func resolveWindowsAppIcon(ctx context.Context, cacheDir string, path string) (s
 		return "", err
 	}
 	out := iconCachePath(cacheDir, path)
-	if _, err := os.Stat(out); err == nil {
-		return iconDataURI(out)
+	if icon, ok := cachedWindowsIcon(out); ok {
+		return icon, nil
 	}
+	_ = os.Remove(out)
 	icon, ok := windowsAssociatedIcon(path)
 	if !ok {
 		return "", nil
@@ -121,10 +122,30 @@ func resolveWindowsAppIcon(ctx context.Context, cacheDir string, path string) (s
 	if !ok {
 		return "", nil
 	}
-	file, err := os.Create(out)
+	return cacheWindowsIcon(out, img)
+}
+
+func cachedWindowsIcon(path string) (string, bool) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", false
+	}
+	_, decodeErr := png.Decode(file)
+	closeErr := file.Close()
+	if decodeErr != nil || closeErr != nil {
+		return "", false
+	}
+	icon, err := iconDataURI(path)
+	return icon, err == nil
+}
+
+func cacheWindowsIcon(out string, img image.Image) (string, error) {
+	file, err := os.CreateTemp(filepath.Dir(out), ".icon-*.png")
 	if err != nil {
 		return "", err
 	}
+	temporary := file.Name()
+	defer os.Remove(temporary)
 	err = png.Encode(file, img)
 	closeErr := file.Close()
 	if err != nil {
@@ -132,6 +153,11 @@ func resolveWindowsAppIcon(ctx context.Context, cacheDir string, path string) (s
 	}
 	if closeErr != nil {
 		return "", closeErr
+	}
+	if err := os.Rename(temporary, out); err != nil {
+		if _, statErr := os.Stat(out); statErr != nil {
+			return "", err
+		}
 	}
 	return iconDataURI(out)
 }

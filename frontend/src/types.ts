@@ -86,7 +86,7 @@ export type LynConfig = {
 };
 
 export type CachedLauncherState = {
-  version: 1;
+  version: 2;
   cfg: LynConfig;
   projects: Project[];
   projectIcons: Record<string, string>;

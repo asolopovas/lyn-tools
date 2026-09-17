@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { consumeEvent } from "../hotkeys";
 import { icons } from "../icons";
 import { detail, title } from "../projectUtils";
@@ -14,6 +14,8 @@ const props = defineProps<{
 }>();
 
 const detailText = computed(() => detail(props.project));
+const failedIcon = ref("");
+const visibleIcon = computed(() => (props.icon === failedIcon.value ? "" : props.icon));
 
 const emit = defineEmits<{
   launch: [project: Project];
@@ -24,6 +26,10 @@ const emit = defineEmits<{
 function launchResult(event: PointerEvent): void {
   consumeEvent(event, false);
   emit("launch", props.project);
+}
+
+function handleIconError(): void {
+  failedIcon.value = props.icon;
 }
 </script>
 
@@ -46,7 +52,13 @@ function launchResult(event: PointerEvent): void {
       <svg v-if="isSystemCommand(project)" viewBox="0 0 24 24" class="size-6 fill-current">
         <path :d="icons[systemCommandIcon(project)]" />
       </svg>
-      <img v-else-if="icon" :src="icon" alt="" class="size-6 object-contain" />
+      <img
+        v-else-if="visibleIcon"
+        :src="visibleIcon"
+        alt=""
+        class="size-6 object-contain"
+        @error="handleIconError"
+      />
       <svg v-else viewBox="0 0 24 24" class="size-6 fill-current">
         <path :d="project.kind === 'app' ? icons.grid : icons.folder" />
       </svg>
