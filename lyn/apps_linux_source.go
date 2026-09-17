@@ -3,7 +3,7 @@ package lyn
 import (
 	"os"
 	"os/exec"
-	"path/filepath"
+	"path"
 	"strings"
 )
 
@@ -11,13 +11,13 @@ func linuxApplicationDirs() []string {
 	home, _ := os.UserHomeDir()
 	dataHome := strings.TrimSpace(os.Getenv("XDG_DATA_HOME"))
 	if dataHome == "" {
-		dataHome = filepath.Join(home, ".local", "share")
+		dataHome = path.Join(home, ".local", "share")
 	}
 	dataDirs := strings.TrimSpace(os.Getenv("XDG_DATA_DIRS"))
 	if dataDirs == "" {
 		dataDirs = "/usr/local/share:/usr/share"
 	}
-	roots := append([]string{dataHome}, filepath.SplitList(dataDirs)...)
+	roots := append([]string{dataHome}, strings.Split(dataDirs, ":")...)
 	dirs := make([]string, 0, len(roots))
 	seen := make(map[string]struct{}, len(roots))
 	for _, root := range roots {
@@ -25,7 +25,7 @@ func linuxApplicationDirs() []string {
 		if root == "" {
 			continue
 		}
-		dir := filepath.Clean(filepath.Join(root, "applications"))
+		dir := path.Join(root, "applications")
 		if _, ok := seen[dir]; ok {
 			continue
 		}

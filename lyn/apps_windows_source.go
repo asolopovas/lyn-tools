@@ -4,8 +4,10 @@ import (
 	"context"
 	"debug/pe"
 	"encoding/binary"
-	"encoding/xml"
+	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -17,39 +19,10 @@ type windowsStartApp struct {
 	AppID string
 }
 
-type appxPackageManifest struct {
-	Identity     appxIdentity      `xml:"Identity"`
-	Properties   appxProperties    `xml:"Properties"`
-	Applications []appxApplication `xml:"Applications>Application"`
-}
-
-type appxIdentity struct {
-	Name string `xml:"Name,attr"`
-}
-
-type appxProperties struct {
-	DisplayName string `xml:"DisplayName"`
-}
-
-type appxApplication struct {
-	ID             string             `xml:"Id,attr"`
-	Executable     string             `xml:"Executable,attr"`
-	EntryPoint     string             `xml:"EntryPoint,attr"`
-	VisualElements appxVisualElements `xml:"VisualElements"`
-}
-
-type appxVisualElements struct {
-	DisplayName  string `xml:"DisplayName,attr"`
-	AppListEntry string `xml:"AppListEntry,attr"`
-	Square44Logo string `xml:"Square44x44Logo,attr"`
-	Square30Logo string `xml:"Square30x30Logo,attr"`
-	Logo         string `xml:"Logo,attr"`
-}
-
 const windowsAppsFolderPrefix = `shell:AppsFolder\`
 
 var windowsStartApps = queryWindowsStartApps
-var windowsPackagedAppRoots = defaultWindowsPackagedAppRoots
+var windowsStartAppsOutput = loadWindowsStartApps
 
 func windowsApplicationDirs() []string {
 	return []string{
@@ -110,7 +83,7 @@ func windowsSystemTools() []Project {
 func addWindowsStartApplications(ctx context.Context, seen projectSet, seenNames stringSet) error {
 	apps, err := windowsStartApps(ctx)
 	if err != nil {
-		return ctx.Err()
+		return err
 	}
 	for _, app := range apps {
 		if ctx.Err() != nil {
@@ -127,226 +100,27 @@ func addWindowsStartApplications(ctx context.Context, seen projectSet, seenNames
 }
 
 func queryWindowsStartApps(ctx context.Context) ([]windowsStartApp, error) {
+	output, err := windowsStartAppsOutput(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var apps []windowsStartApp
-	seen := newStringSet(0)
-	for _, root := range windowsPackagedAppRoots() {
-		if ctx.Err() != nil {
-			return apps, ctx.Err()
-		}
-		entries, err := os.ReadDir(root)
-		if err != nil {
-			continue
-		}
-		for _, entry := range entries {
-			if ctx.Err() != nil {
-				return apps, ctx.Err()
-			}
-			if !entry.IsDir() {
-				continue
-			}
-			manifestPath := filepath.Join(root, entry.Name(), "AppxManifest.xml")
-			manifestApps, err := parseWindowsPackageManifest(manifestPath)
-			if err != nil {
-				continue
-			}
-			for _, app := range manifestApps {
-				if !seen.addFold(app.AppID) {
-					continue
-				}
-				apps = append(apps, app)
-			}
-		}
+	if err := json.Unmarshal(output, &apps); err != nil {
+		return nil, fmt.Errorf("parse Windows Start apps: %w", err)
 	}
 	return apps, nil
 }
 
-func defaultWindowsPackagedAppRoots() []string {
-	return []string{filepath.Join(os.Getenv("ProgramFiles"), "WindowsApps")}
-}
-
-func parseWindowsPackageManifest(path string) ([]windowsStartApp, error) {
-	data, err := os.ReadFile(path)
+func loadWindowsStartApps(ctx context.Context) ([]byte, error) {
+	powershell := filepath.Join(windowsSystemRoot(), "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+	script := `[Console]::OutputEncoding=[Text.Encoding]::UTF8; ConvertTo-Json -Compress -InputObject @(Get-StartApps | Select-Object Name,AppID)`
+	cmd := exec.CommandContext(ctx, powershell, "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script)
+	hideConsoleWindow(cmd)
+	output, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query Windows Start apps: %w", err)
 	}
-	var manifest appxPackageManifest
-	if err := xml.Unmarshal(data, &manifest); err != nil {
-		return nil, err
-	}
-	family := windowsPackageFamilyName(filepath.Base(filepath.Dir(path)), manifest.Identity.Name)
-	if family == "" {
-		return nil, nil
-	}
-	apps := make([]windowsStartApp, 0, len(manifest.Applications))
-	for _, application := range manifest.Applications {
-		if !windowsPackageApplicationAllowed(application) {
-			continue
-		}
-		name := windowsPackageApplicationName(application, manifest.Properties.DisplayName)
-		if !applicationNameAllowed(name) || strings.HasPrefix(strings.ToLower(name), "ms-resource:") {
-			continue
-		}
-		apps = append(apps, windowsStartApp{Name: name, AppID: family + "!" + strings.TrimSpace(application.ID)})
-	}
-	return apps, nil
-}
-
-func windowsPackagedAppLogo(appID string) (string, bool) {
-	appID = strings.TrimSpace(appID)
-	if appID == "" {
-		return "", false
-	}
-	for _, root := range windowsPackagedAppRoots() {
-		entries, err := os.ReadDir(root)
-		if err != nil {
-			continue
-		}
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				continue
-			}
-			packageDir := filepath.Join(root, entry.Name())
-			logo, ok := windowsManifestAppLogo(filepath.Join(packageDir, "AppxManifest.xml"), appID)
-			if !ok {
-				continue
-			}
-			if asset, ok := resolveWindowsAssetFile(packageDir, logo); ok {
-				return asset, true
-			}
-		}
-	}
-	return "", false
-}
-
-func windowsManifestAppLogo(manifestPath string, appID string) (string, bool) {
-	data, err := os.ReadFile(manifestPath)
-	if err != nil {
-		return "", false
-	}
-	var manifest appxPackageManifest
-	if err := xml.Unmarshal(data, &manifest); err != nil {
-		return "", false
-	}
-	family := windowsPackageFamilyName(filepath.Base(filepath.Dir(manifestPath)), manifest.Identity.Name)
-	if family == "" {
-		return "", false
-	}
-	for _, application := range manifest.Applications {
-		id := strings.TrimSpace(application.ID)
-		if id == "" || family+"!"+id != appID {
-			continue
-		}
-		logo := firstNonEmpty(
-			application.VisualElements.Square44Logo,
-			application.VisualElements.Square30Logo,
-			application.VisualElements.Logo,
-		)
-		return strings.TrimSpace(logo), strings.TrimSpace(logo) != ""
-	}
-	return "", false
-}
-
-func resolveWindowsAssetFile(packageDir string, logo string) (string, bool) {
-	rel := filepath.FromSlash(strings.ReplaceAll(logo, `\`, "/"))
-	full := filepath.Join(packageDir, rel)
-	if info, err := os.Stat(full); err == nil && !info.IsDir() {
-		return full, true
-	}
-	return bestScaledWindowsAsset(full)
-}
-
-func bestScaledWindowsAsset(full string) (string, bool) {
-	dir := filepath.Dir(full)
-	ext := filepath.Ext(full)
-	prefix := strings.TrimSuffix(filepath.Base(full), ext) + "."
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return "", false
-	}
-	best := ""
-	bestScore := -1
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if !strings.HasPrefix(name, prefix) || !strings.EqualFold(filepath.Ext(name), ext) {
-			continue
-		}
-		qualifier := strings.ToLower(name[len(prefix) : len(name)-len(ext)])
-		if score := scaledAssetScore(qualifier); score > bestScore {
-			bestScore = score
-			best = filepath.Join(dir, name)
-		}
-	}
-	return best, best != ""
-}
-
-func scaledAssetScore(qualifier string) int {
-	if strings.Contains(qualifier, "contrast-") {
-		return 1
-	}
-	score := 10
-	switch {
-	case strings.Contains(qualifier, "scale-200"):
-		score = 100
-	case strings.Contains(qualifier, "scale-150"):
-		score = 90
-	case strings.Contains(qualifier, "scale-125"):
-		score = 85
-	case strings.Contains(qualifier, "scale-100"):
-		score = 80
-	case strings.Contains(qualifier, "targetsize-"):
-		score = 70
-	}
-	if strings.Contains(qualifier, "altform-unplated") {
-		score += 5
-	}
-	return score
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
-}
-
-func windowsPackageApplicationAllowed(application appxApplication) bool {
-	if strings.TrimSpace(application.ID) == "" {
-		return false
-	}
-	if strings.EqualFold(strings.TrimSpace(application.VisualElements.AppListEntry), "none") {
-		return false
-	}
-	return strings.TrimSpace(application.Executable) != "" || strings.TrimSpace(application.EntryPoint) != ""
-}
-
-func windowsPackageApplicationName(application appxApplication, fallback string) string {
-	name := strings.TrimSpace(application.VisualElements.DisplayName)
-	if name != "" {
-		return name
-	}
-	return strings.TrimSpace(fallback)
-}
-
-func windowsPackageFamilyName(packageDir string, identityName string) string {
-	identityName = strings.TrimSpace(identityName)
-	if identityName == "" {
-		return ""
-	}
-	marker := "__"
-	index := strings.LastIndex(packageDir, marker)
-	if index < 0 || index+len(marker) >= len(packageDir) {
-		return ""
-	}
-	publisherID := strings.TrimSpace(packageDir[index+len(marker):])
-	if publisherID == "" {
-		return ""
-	}
-	return identityName + "_" + publisherID
+	return output, nil
 }
 
 func windowsStartAppAllowed(name string, appID string) bool {

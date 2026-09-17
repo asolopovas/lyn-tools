@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -18,8 +19,11 @@ import (
 const (
 	shgfiIcon      = 0x000000100
 	shgfiLargeIcon = 0x000000000
+	shgfiPidl      = 0x000000008
 	dibRGBColors   = 0
 	biRGB          = 0
+	coinitSTA      = 0x2
+	rpcChangedMode = 0x80010106
 )
 
 type windowsSHFileInfo struct {
@@ -75,17 +79,22 @@ type windowsBitmapInfo struct {
 }
 
 var (
-	windowsShell32       = syscall.NewLazyDLL("shell32.dll")
-	windowsUser32        = syscall.NewLazyDLL("user32.dll")
-	windowsGdi32         = syscall.NewLazyDLL("gdi32.dll")
-	windowsSHGetFileInfo = windowsShell32.NewProc("SHGetFileInfoW")
-	windowsDestroyIcon   = windowsUser32.NewProc("DestroyIcon")
-	windowsGetIconInfo   = windowsUser32.NewProc("GetIconInfo")
-	windowsGetDC         = windowsUser32.NewProc("GetDC")
-	windowsReleaseDC     = windowsUser32.NewProc("ReleaseDC")
-	windowsGetObject     = windowsGdi32.NewProc("GetObjectW")
-	windowsGetDIBits     = windowsGdi32.NewProc("GetDIBits")
-	windowsDeleteObject  = windowsGdi32.NewProc("DeleteObject")
+	windowsShell32        = syscall.NewLazyDLL("shell32.dll")
+	windowsOle32          = syscall.NewLazyDLL("ole32.dll")
+	windowsUser32         = syscall.NewLazyDLL("user32.dll")
+	windowsGdi32          = syscall.NewLazyDLL("gdi32.dll")
+	windowsSHGetFileInfo  = windowsShell32.NewProc("SHGetFileInfoW")
+	windowsSHParseName    = windowsShell32.NewProc("SHParseDisplayName")
+	windowsCoInitialize   = windowsOle32.NewProc("CoInitializeEx")
+	windowsCoUninitialize = windowsOle32.NewProc("CoUninitialize")
+	windowsFreeShellItem  = windowsOle32.NewProc("CoTaskMemFree")
+	windowsDestroyIcon    = windowsUser32.NewProc("DestroyIcon")
+	windowsGetIconInfo    = windowsUser32.NewProc("GetIconInfo")
+	windowsGetDC          = windowsUser32.NewProc("GetDC")
+	windowsReleaseDC      = windowsUser32.NewProc("ReleaseDC")
+	windowsGetObject      = windowsGdi32.NewProc("GetObjectW")
+	windowsGetDIBits      = windowsGdi32.NewProc("GetDIBits")
+	windowsDeleteObject   = windowsGdi32.NewProc("DeleteObject")
 )
 
 func init() {
@@ -102,9 +111,6 @@ func resolveWindowsAppIcon(ctx context.Context, cacheDir string, path string) (s
 	out := iconCachePath(cacheDir, path)
 	if _, err := os.Stat(out); err == nil {
 		return iconDataURI(out)
-	}
-	if strings.HasPrefix(path, windowsAppsFolderPrefix) {
-		return packagedWindowsAppIcon(out, path)
 	}
 	icon, ok := windowsAssociatedIcon(path)
 	if !ok {
@@ -130,21 +136,6 @@ func resolveWindowsAppIcon(ctx context.Context, cacheDir string, path string) (s
 	return iconDataURI(out)
 }
 
-func packagedWindowsAppIcon(out string, path string) (string, error) {
-	asset, ok := windowsPackagedAppLogo(strings.TrimPrefix(path, windowsAppsFolderPrefix))
-	if !ok {
-		return "", nil
-	}
-	data, err := os.ReadFile(asset)
-	if err != nil {
-		return "", nil
-	}
-	if err := os.WriteFile(out, data, 0o644); err != nil {
-		return "", err
-	}
-	return iconDataURI(out)
-}
-
 func iconCachePath(dir string, path string) string {
 	info, _ := os.Stat(path)
 	key := path
@@ -160,13 +151,35 @@ func windowsAssociatedIcon(path string) (syscall.Handle, bool) {
 	if err != nil {
 		return 0, false
 	}
+	input := uintptr(unsafe.Pointer(target))
+	flags := uintptr(shgfiIcon | shgfiLargeIcon)
+	if strings.HasPrefix(path, windowsAppsFolderPrefix) {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		result, _, _ := windowsCoInitialize.Call(0, coinitSTA)
+		status := uint32(result)
+		if status != 0 && status != 1 && status != rpcChangedMode {
+			return 0, false
+		}
+		if status == 0 || status == 1 {
+			defer windowsCoUninitialize.Call()
+		}
+		var item uintptr
+		result, _, _ = windowsSHParseName.Call(input, 0, uintptr(unsafe.Pointer(&item)), 0, 0)
+		if result != 0 || item == 0 {
+			return 0, false
+		}
+		defer windowsFreeShellItem.Call(item)
+		input = item
+		flags |= shgfiPidl
+	}
 	var info windowsSHFileInfo
 	ret, _, _ := windowsSHGetFileInfo.Call(
-		uintptr(unsafe.Pointer(target)),
+		input,
 		0,
 		uintptr(unsafe.Pointer(&info)),
 		unsafe.Sizeof(info),
-		uintptr(shgfiIcon|shgfiLargeIcon),
+		flags,
 	)
 	return info.icon, ret != 0 && info.icon != 0
 }

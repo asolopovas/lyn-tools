@@ -29,7 +29,7 @@ func TestNoSingleFileNonDocumentationFolders(t *testing.T) {
 		}
 		clean := strings.TrimPrefix(filepath.Clean(path), "."+string(filepath.Separator))
 		base := filepath.Base(clean)
-		if base == ".git" || base == ".github" || base == ".claude" || base == "graphify-out" || base == "node_modules" || clean == filepath.Join("frontend", "wailsjs") || strings.HasPrefix(clean, "docs") {
+		if base == ".git" || base == ".github" || base == ".claude" || strings.HasPrefix(base, ".codex-") || base == "graphify-out" || base == "node_modules" || clean == filepath.Join("frontend", "wailsjs") || strings.HasPrefix(clean, "docs") {
 			return filepath.SkipDir
 		}
 		if allowed[clean] {
@@ -94,7 +94,7 @@ func TestDocLinksResolve(t *testing.T) {
 			return err
 		}
 		if entry.IsDir() {
-			if skipDir[entry.Name()] {
+			if skipDir[entry.Name()] || strings.HasPrefix(entry.Name(), ".codex-") {
 				return filepath.SkipDir
 			}
 			return nil

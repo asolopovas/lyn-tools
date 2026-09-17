@@ -9,7 +9,7 @@ Part of the [architecture map](../ARCHITECTURE.md).
 
 ## Windows
 
-- **Discovery:** indexes Start Menu/Desktop shortcuts and GUI executables from PATH. Console tools and the `Startup` folder are skipped. Launch/reveal/startup use native APIs to avoid helper terminals.
+- **Discovery:** indexes registered Start apps, Start Menu/Desktop shortcuts, and GUI executables from PATH. Console tools and the `Startup` folder are skipped. Launch/reveal/startup use native APIs to avoid helper terminals.
 - **Elevation:** launched processes must never inherit Lyn's elevation.
   - Non-elevated Lyn launches directly via `exec`/`ShellExecute`.
   - When elevated, `startProcessAsShellUser` duplicates the shell (Explorer) process token and launches the child with `CreateProcessWithTokenW`, so GUI and console targets run at the shell user's standard integrity through one path. It fails closed if that token is itself elevated.

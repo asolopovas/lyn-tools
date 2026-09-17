@@ -278,116 +278,17 @@ func TestAddWindowsStartApplicationsDeduplicatesShortcutNames(t *testing.T) {
 	}
 }
 
-func TestParseWindowsPackageManifest(t *testing.T) {
-	root := t.TempDir()
-	packageDir := filepath.Join(root, "5319275A.WhatsAppDesktop_2.2620.102.0_x64__cv1g1gvanyjgm")
-	if err := os.Mkdir(packageDir, 0o755); err != nil {
-		t.Fatal(err)
+func TestQueryWindowsStartAppsUsesRegisteredStartApps(t *testing.T) {
+	original := windowsStartAppsOutput
+	windowsStartAppsOutput = func(context.Context) ([]byte, error) {
+		return []byte(`[{"Name":"ChatGPT","AppID":"OpenAI.Codex_abc123!App"}]`), nil
 	}
-	manifest := `<?xml version="1.0" encoding="utf-8"?>
-<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10">
-  <Identity Name="5319275A.WhatsAppDesktop" Publisher="CN=test" Version="1.0.0.0" ProcessorArchitecture="x64" />
-  <Properties><DisplayName>Fallback</DisplayName></Properties>
-  <Applications>
-    <Application Id="App" Executable="WhatsApp.Root.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="WhatsApp" Description="WhatsApp" />
-    </Application>
-    <Application Id="Hidden" Executable="Hidden.exe">
-      <uap:VisualElements DisplayName="Hidden" AppListEntry="none" />
-    </Application>
-  </Applications>
-</Package>`
-	manifestPath := filepath.Join(packageDir, "AppxManifest.xml")
-	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	apps, err := parseWindowsPackageManifest(manifestPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(apps) != 1 || apps[0].Name != "WhatsApp" || apps[0].AppID != "5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App" {
-		t.Fatalf("unexpected apps %#v", apps)
-	}
-}
-
-func TestWindowsPackagedAppLogoResolvesScaledAsset(t *testing.T) {
-	root := t.TempDir()
-	packageDir := filepath.Join(root, "Example.App_1.0.0.0_x64__abc123")
-	assets := filepath.Join(packageDir, "Assets")
-	if err := os.MkdirAll(assets, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	manifest := `<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"><Identity Name="Example.App" Publisher="CN=test" Version="1" ProcessorArchitecture="x64" /><Properties><DisplayName>Example</DisplayName></Properties><Applications><Application Id="App" Executable="Example.exe"><uap:VisualElements DisplayName="Example App" Square44x44Logo="Assets\Square44x44Logo.png" /></Application></Applications></Package>`
-	if err := os.WriteFile(filepath.Join(packageDir, "AppxManifest.xml"), []byte(manifest), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"Square44x44Logo.scale-100.png", "Square44x44Logo.scale-200.png", "Square44x44Logo.scale-200_contrast-black.png"} {
-		if err := os.WriteFile(filepath.Join(assets, name), []byte("png"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	original := windowsPackagedAppRoots
-	windowsPackagedAppRoots = func() []string { return []string{root} }
-	t.Cleanup(func() { windowsPackagedAppRoots = original })
-	asset, ok := windowsPackagedAppLogo("Example.App_abc123!App")
-	if !ok {
-		t.Fatal("expected a logo asset")
-	}
-	if filepath.Base(asset) != "Square44x44Logo.scale-200.png" {
-		t.Fatalf("expected scale-200 asset, got %q", asset)
-	}
-}
-
-func TestWindowsPackagedAppLogoUsesExactAssetWhenPresent(t *testing.T) {
-	root := t.TempDir()
-	packageDir := filepath.Join(root, "Example.App_1.0.0.0_x64__abc123")
-	assets := filepath.Join(packageDir, "Assets")
-	if err := os.MkdirAll(assets, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	manifest := `<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"><Identity Name="Example.App" Publisher="CN=test" Version="1" ProcessorArchitecture="x64" /><Properties><DisplayName>Example</DisplayName></Properties><Applications><Application Id="App" Executable="Example.exe"><uap:VisualElements DisplayName="Example App" Square44x44Logo="Assets\Square44x44Logo.png" /></Application></Applications></Package>`
-	if err := os.WriteFile(filepath.Join(packageDir, "AppxManifest.xml"), []byte(manifest), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(assets, "Square44x44Logo.png"), []byte("png"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	original := windowsPackagedAppRoots
-	windowsPackagedAppRoots = func() []string { return []string{root} }
-	t.Cleanup(func() { windowsPackagedAppRoots = original })
-	asset, ok := windowsPackagedAppLogo("Example.App_abc123!App")
-	if !ok || filepath.Base(asset) != "Square44x44Logo.png" {
-		t.Fatalf("expected exact logo asset, got %q (ok=%v)", asset, ok)
-	}
-}
-
-func TestWindowsPackagedAppLogoMissesUnknownApp(t *testing.T) {
-	original := windowsPackagedAppRoots
-	windowsPackagedAppRoots = func() []string { return []string{t.TempDir()} }
-	t.Cleanup(func() { windowsPackagedAppRoots = original })
-	if asset, ok := windowsPackagedAppLogo("Missing.App_abc123!App"); ok {
-		t.Fatalf("expected no logo, got %q", asset)
-	}
-}
-
-func TestQueryWindowsStartAppsUsesManifestRootsWithoutPowerShell(t *testing.T) {
-	root := t.TempDir()
-	packageDir := filepath.Join(root, "Example.App_1.0.0.0_x64__abc123")
-	if err := os.Mkdir(packageDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	manifest := `<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"><Identity Name="Example.App" Publisher="CN=test" Version="1" ProcessorArchitecture="x64" /><Properties><DisplayName>Example</DisplayName></Properties><Applications><Application Id="App" Executable="Example.exe"><uap:VisualElements DisplayName="Example App" /></Application></Applications></Package>`
-	if err := os.WriteFile(filepath.Join(packageDir, "AppxManifest.xml"), []byte(manifest), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	original := windowsPackagedAppRoots
-	windowsPackagedAppRoots = func() []string { return []string{root} }
-	t.Cleanup(func() { windowsPackagedAppRoots = original })
+	t.Cleanup(func() { windowsStartAppsOutput = original })
 	apps, err := queryWindowsStartApps(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(apps) != 1 || apps[0].Name != "Example App" || apps[0].AppID != "Example.App_abc123!App" {
+	if len(apps) != 1 || apps[0].Name != "ChatGPT" || apps[0].AppID != "OpenAI.Codex_abc123!App" {
 		t.Fatalf("unexpected apps %#v", apps)
 	}
 }

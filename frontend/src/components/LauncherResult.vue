@@ -47,7 +47,9 @@ function launchResult(event: PointerEvent): void {
         <path :d="icons[systemCommandIcon(project)]" />
       </svg>
       <img v-else-if="icon" :src="icon" alt="" class="size-6 object-contain" />
-      <svg v-else viewBox="0 0 24 24" class="size-6 fill-current"><path :d="icons.folder" /></svg>
+      <svg v-else viewBox="0 0 24 24" class="size-6 fill-current">
+        <path :d="project.kind === 'app' ? icons.grid : icons.folder" />
+      </svg>
     </div>
     <div class="relative z-10 grid min-w-0">
       <strong
